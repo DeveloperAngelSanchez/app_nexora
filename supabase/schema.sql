@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS public.products (
     id TEXT PRIMARY KEY DEFAULT ('NX-' || UPPER(SUBSTRING(MD5(RANDOM()::TEXT) FROM 1 FOR 6))),
     slug TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
+    barcode TEXT UNIQUE,
     brand_id TEXT REFERENCES public.brands(id) ON DELETE SET NULL,
     brand_name TEXT NOT NULL,
     category_id TEXT REFERENCES public.categories(id) ON DELETE SET NULL,
@@ -273,6 +274,7 @@ INSERT INTO public.site_settings (id) VALUES ('main') ON CONFLICT (id) DO NOTHIN
 CREATE INDEX IF NOT EXISTS idx_products_brand_id ON public.products(brand_id);
 CREATE INDEX IF NOT EXISTS idx_products_category_id ON public.products(category_id);
 CREATE INDEX IF NOT EXISTS idx_products_slug ON public.products(slug);
+CREATE INDEX IF NOT EXISTS idx_products_barcode ON public.products(barcode) WHERE barcode IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_products_active ON public.products(is_active) WHERE is_active = true;
 CREATE INDEX IF NOT EXISTS idx_products_featured ON public.products(is_featured) WHERE is_featured = true;
 CREATE INDEX IF NOT EXISTS idx_products_price ON public.products(price);
@@ -413,6 +415,7 @@ SELECT
     p.id,
     p.slug,
     p.name,
+    p.barcode,
     p.brand_id,
     p.brand_name,
     b.slug AS brand_slug,

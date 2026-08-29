@@ -7,6 +7,7 @@ export interface Product {
   id: string;
   slug: string;
   name: string;
+  barcode?: string;
   brand: string;
   categoryId: string;
   categoryName: string;

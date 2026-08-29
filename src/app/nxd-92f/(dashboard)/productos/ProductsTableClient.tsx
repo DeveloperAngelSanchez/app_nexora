@@ -15,14 +15,19 @@ import {
   Eye, 
   EyeOff, 
   AlertTriangle,
-  Package
+  Package,
+  Camera,
+  QrCode,
+  ScanLine
 } from 'lucide-react';
 import { toggleProductActive, deleteProduct } from '@/lib/admin/products';
+import { BarcodeScannerModal } from '@/components/admin/BarcodeScannerModal';
 
 interface ProductItem {
   id: string;
   slug: string;
   name: string;
+  barcode?: string | null;
   brand_name: string;
   category_id: string | null;
   price: number;
@@ -56,6 +61,7 @@ export function ProductsTableClient({ initialProducts, categories }: ProductsTab
   const [stockFilter, setStockFilter] = useState('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const filtered = products.filter((p) => {
     if (selectedCategory !== 'all' && p.category_id !== selectedCategory) return false;
@@ -66,7 +72,8 @@ export function ProductsTableClient({ initialProducts, categories }: ProductsTab
       return (
         p.name.toLowerCase().includes(q) ||
         p.brand_name.toLowerCase().includes(q) ||
-        p.id.toLowerCase().includes(q)
+        p.id.toLowerCase().includes(q) ||
+        (p.barcode && p.barcode.toLowerCase().includes(q))
       );
     }
     return true;
@@ -145,6 +152,16 @@ export function ProductsTableClient({ initialProducts, categories }: ProductsTab
             <option value="out">Sin Stock (0)</option>
           </select>
 
+          {/* Scanner Button */}
+          <button
+            type="button"
+            onClick={() => setIsScannerOpen(true)}
+            className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow-xs shrink-0 transition-all cursor-pointer"
+          >
+            <Camera className="w-4 h-4 text-emerald-400" />
+            <span className="hidden sm:inline">Escanear</span>
+          </button>
+
           <Link
             href="/nxd-92f/productos/nuevo"
             className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs shrink-0 transition-all cursor-pointer"
@@ -166,18 +183,28 @@ export function ProductsTableClient({ initialProducts, categories }: ProductsTab
               <h3 className="text-base font-bold text-slate-800">No se encontraron productos</h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
                 {products.length === 0
-                  ? 'Aún no has creado productos. Haz clic en "Nuevo Producto" para publicar el primero.'
+                  ? 'Aún no has creado productos. Haz clic en "Nuevo Producto" o escanea un código para publicar el primero.'
                   : 'No hay productos que coincidan con los filtros seleccionados.'}
               </p>
             </div>
             {products.length === 0 && (
-              <Link
-                href="/nxd-92f/productos/nuevo"
-                className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-all shadow-xs"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Crear Primer Producto</span>
-              </Link>
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsScannerOpen(true)}
+                  className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-all shadow-xs cursor-pointer"
+                >
+                  <Camera className="w-4 h-4 text-emerald-400" />
+                  <span>Escanear Código de Barras</span>
+                </button>
+                <Link
+                  href="/nxd-92f/productos/nuevo"
+                  className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-all shadow-xs"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Crear Manualmente</span>
+                </Link>
+              </div>
             )}
           </div>
         ) : (
@@ -207,11 +234,19 @@ export function ProductsTableClient({ initialProducts, categories }: ProductsTab
                             <span className="text-[10px] font-bold text-slate-400">NX</span>
                           )}
                         </div>
-                        <div className="min-w-0 max-w-xs">
+                        <div className="min-w-0 max-w-xs space-y-0.5">
                           <p className="font-bold text-slate-900 truncate">{p.name}</p>
-                          <p className="text-[11px] text-slate-400">
-                            {p.brand_name} • ID: <span className="font-mono">{p.id}</span>
-                          </p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[11px] text-slate-400">{p.brand_name}</span>
+                            <span className="text-[10px] text-slate-300">•</span>
+                            <span className="text-[11px] text-slate-400 font-mono">ID: {p.id}</span>
+                            {p.barcode && (
+                              <span className="inline-flex items-center gap-1 font-mono text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200/60 px-1.5 py-0.2 rounded">
+                                <ScanLine className="w-2.5 h-2.5" />
+                                {p.barcode}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -320,6 +355,12 @@ export function ProductsTableClient({ initialProducts, categories }: ProductsTab
           </div>
         )}
       </div>
+
+      {/* Barcode Scanner Modal */}
+      <BarcodeScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+      />
 
     </div>
   );

@@ -15,7 +15,8 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  Smartphone
 } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 
@@ -24,6 +25,7 @@ const ADMIN_BASE = '/nxd-92f';
 const navigation = [
   { name: 'Dashboard', href: ADMIN_BASE, icon: LayoutDashboard, exact: true },
   { name: 'Productos', href: `${ADMIN_BASE}/productos`, icon: Package },
+  { name: 'Escáner Móvil', href: `${ADMIN_BASE}/scanner`, icon: Smartphone },
   { name: 'Categorías', href: `${ADMIN_BASE}/categorias`, icon: Layers },
   { name: 'Pedidos', href: `${ADMIN_BASE}/pedidos`, icon: ShoppingBag },
   { name: 'Promociones', href: `${ADMIN_BASE}/promociones`, icon: Tag },

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { ProductForm } from '@/components/admin/ProductForm';
 import { getProductById } from '@/lib/admin/products';
@@ -26,11 +26,19 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
 
   return (
     <div className="max-w-7xl">
-      <ProductForm
-        initialData={product}
-        categories={categories}
-        isEditing={true}
-      />
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center p-12">
+            <div className="w-8 h-8 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+          </div>
+        }
+      >
+        <ProductForm
+          initialData={product}
+          categories={categories}
+          isEditing={true}
+        />
+      </Suspense>
     </div>
   );
 }

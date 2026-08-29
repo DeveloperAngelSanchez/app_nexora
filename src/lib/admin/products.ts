@@ -7,6 +7,7 @@ export interface ProductInput {
   id?: string;
   name: string;
   slug: string;
+  barcode?: string | null;
   brand: string;
   category_id: string;
   price: number;
@@ -42,7 +43,7 @@ export async function getAdminProducts(filters: { search?: string; category?: st
     .order('created_at', { ascending: false });
 
   if (filters.search) {
-    query = query.or(`name.ilike.%${filters.search}%,brand_name.ilike.%${filters.search}%`);
+    query = query.or(`name.ilike.%${filters.search}%,brand_name.ilike.%${filters.search}%,barcode.ilike.%${filters.search}%`);
   }
 
   if (filters.category && filters.category !== 'all') {
@@ -90,6 +91,31 @@ export async function getAdminProductById(id: string) {
 
 export const getProductById = getAdminProductById;
 
+export async function findProductByBarcode(barcode: string) {
+  const supabase = await createSupabaseServerClient();
+  const cleanBarcode = barcode.trim();
+  if (!cleanBarcode) return null;
+
+  const { data, error } = await supabase
+    .from('products')
+    .select(`
+      *,
+      categories:category_id (
+        id,
+        name
+      )
+    `)
+    .eq('barcode', cleanBarcode)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error finding product by barcode:', error.message);
+    return null;
+  }
+
+  return data;
+}
+
 export async function createProduct(input: ProductInput) {
   const supabase = await createSupabaseServerClient();
 
@@ -107,6 +133,7 @@ export async function createProduct(input: ProductInput) {
         id: newId,
         slug: input.slug,
         name: input.name,
+        barcode: input.barcode ? input.barcode.trim() : null,
         brand_name: input.brand || 'Genérico',
         category_id: input.category_id || null,
         price: input.price,
@@ -159,6 +186,7 @@ export async function updateProduct(id: string, input: Partial<ProductInput>) {
 
   if (input.name !== undefined) updateData.name = input.name;
   if (input.slug !== undefined) updateData.slug = input.slug;
+  if (input.barcode !== undefined) updateData.barcode = input.barcode ? input.barcode.trim() : null;
   if (input.brand !== undefined) updateData.brand_name = input.brand;
   if (input.category_id !== undefined) updateData.category_id = input.category_id;
   if (input.price !== undefined) updateData.price = input.price;

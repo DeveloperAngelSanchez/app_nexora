@@ -21,7 +21,14 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: '/favicon.ico',
-  }
+    apple: '/icons/icon-192x192.png',
+  },
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'NeXora',
+  },
 };
 
 export default function RootLayout({
