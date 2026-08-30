@@ -1,19 +1,21 @@
 import React from 'react';
 import { HeroBanner } from '@/components/home/HeroBanner';
 import { CategoryPills } from '@/components/home/CategoryPills';
+import { FeaturedCarousel } from '@/components/home/FeaturedCarousel';
 import { ProductGrid } from '@/components/products/ProductGrid';
-import { getAllProducts, getCategories } from '@/lib/catalog';
+import { getAllProducts, getCategories, getFeaturedProducts } from '@/lib/catalog';
 import { getPublicSiteSettings, getActiveHeroBanners } from '@/lib/settings';
 import { MessageCircle, Zap } from 'lucide-react';
 
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [allProducts, categories, settings, heroBanners] = await Promise.all([
+  const [allProducts, categories, settings, heroBanners, featuredProducts] = await Promise.all([
     getAllProducts(),
     getCategories(),
     getPublicSiteSettings(),
     getActiveHeroBanners(),
+    getFeaturedProducts(12),
   ]);
 
   const cleanPhone = (settings.whatsapp_number || '51999999999').replace(/[^0-9]/g, '');
@@ -27,13 +29,18 @@ export default async function HomePage() {
       {/* 1. Dynamic Hero Banner (from Supabase promotions or clean dynamic store fallback) */}
       <HeroBanner banners={heroBanners} settings={settings} />
 
-      {/* 2. Category Pills (100% Real from Supabase categories) */}
+      {/* 2. Featured Products Carousel (products marked as "Destacados") */}
+      {featuredProducts.length > 0 && (
+        <FeaturedCarousel products={featuredProducts} />
+      )}
+
+      {/* 3. Category Pills (100% Real from Supabase categories) */}
       <CategoryPills categories={categories} />
 
-      {/* 3. Products Grid (100% Real from Supabase products) */}
+      {/* 4. Products Grid (100% Real from Supabase products) */}
       <ProductGrid initialProducts={allProducts} />
 
-      {/* 4. Direct WhatsApp Consultation Banner - 100% Dynamic from site_settings */}
+      {/* 5. Direct WhatsApp Consultation Banner - 100% Dynamic from site_settings */}
       <section className="py-12 bg-white border-t border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-gradient-to-r from-emerald-50 via-teal-50/60 to-slate-50 rounded-3xl p-6 sm:p-10 border border-emerald-200/80 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
@@ -65,3 +72,4 @@ export default async function HomePage() {
     </div>
   );
 }
+
