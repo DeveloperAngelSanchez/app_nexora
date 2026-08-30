@@ -269,8 +269,9 @@ export async function getCategoryBySlug(slug: string): Promise<Category | null> 
 
 export async function getProductsByCategory(categoryIdOrSlug: string): Promise<Product[]> {
   const products = await getAllProducts();
+  const target = categoryIdOrSlug.toLowerCase();
   return products.filter(
-    (p) => p.categoryId === categoryIdOrSlug || p.categoryName.toLowerCase() === categoryIdOrSlug.toLowerCase()
+    (p) => p.categoryId === categoryIdOrSlug || (p.categoryName && p.categoryName.toLowerCase() === target)
   );
 }
 
