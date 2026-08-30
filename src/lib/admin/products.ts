@@ -159,7 +159,13 @@ export async function createProduct(input: ProductInput) {
 
   if (error) {
     console.error('Error creating product:', error.message);
-    return { success: false, error: error.message };
+    let friendlyMessage = error.message;
+    if (error.message.includes('products_barcode_key') || (error.message.includes('duplicate key') && error.message.includes('barcode'))) {
+      friendlyMessage = 'El código de barras ya está registrado en otro producto del catálogo.';
+    } else if (error.message.includes('products_slug_key') || (error.message.includes('duplicate key') && error.message.includes('slug'))) {
+      friendlyMessage = 'La URL (slug) ya existe. Por favor cambia el nombre o modifica el slug.';
+    }
+    return { success: false, error: friendlyMessage };
   }
 
   revalidatePath('/nxd-92f/productos');
@@ -220,7 +226,14 @@ export async function updateProduct(id: string, input: Partial<ProductInput>) {
     .single();
 
   if (error) {
-    return { success: false, error: error.message };
+    console.error('Error updating product:', error.message);
+    let friendlyMessage = error.message;
+    if (error.message.includes('products_barcode_key') || (error.message.includes('duplicate key') && error.message.includes('barcode'))) {
+      friendlyMessage = 'El código de barras ya está registrado en otro producto del catálogo.';
+    } else if (error.message.includes('products_slug_key') || (error.message.includes('duplicate key') && error.message.includes('slug'))) {
+      friendlyMessage = 'La URL (slug) ya existe. Por favor cambia el nombre o modifica el slug.';
+    }
+    return { success: false, error: friendlyMessage };
   }
 
   revalidatePath('/nxd-92f/productos');

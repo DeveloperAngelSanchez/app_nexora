@@ -428,22 +428,40 @@ export function ProductForm({ initialData, categories, isEditing = false }: Prod
               <span>Categoría</span>
             </h2>
 
-            <div className="space-y-2">
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold focus:outline-none focus:border-emerald-500"
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              <p className="text-[11px] text-slate-400">
-                Puedes agregar más categorías desde el módulo de Categorías.
-              </p>
-            </div>
+            {categories.length > 0 ? (
+              <div className="space-y-2">
+                <select
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold focus:outline-none focus:border-emerald-500"
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-400">
+                  Puedes agregar más categorías desde el módulo de Categorías.
+                </p>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
+                <p className="text-xs font-bold text-amber-900">
+                  No hay categorías registradas aún.
+                </p>
+                <p className="text-[11px] text-amber-700">
+                  Puedes guardar el producto ahora y asignarle categoría luego, o crear una nueva.
+                </p>
+                <Link
+                  href="/nxd-92f/categorias"
+                  target="_blank"
+                  className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 underline"
+                >
+                  + Ir a Gestión de Categorías
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Card: Badges & Visibility */}

@@ -57,16 +57,16 @@ export function ImageUploader({ images, onChange }: ImageUploaderProps) {
     }
   };
 
-  const handleAddUrl = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!urlInput.trim()) return;
+  const handleAddUrl = () => {
+    const cleanUrl = urlInput.trim();
+    if (!cleanUrl) return;
 
-    if (!urlInput.startsWith('http://') && !urlInput.startsWith('https://')) {
-      setErrorMsg('La URL debe comenzar con http:// o https://');
+    if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+      setErrorMsg('La URL de la imagen debe comenzar con http:// o https://');
       return;
     }
 
-    onChange([...images, urlInput.trim()]);
+    onChange([...images, cleanUrl]);
     setUrlInput('');
     setErrorMsg(null);
   };
@@ -132,8 +132,8 @@ export function ImageUploader({ images, onChange }: ImageUploaderProps) {
           />
         </label>
 
-        {/* 2. Direct External URL Input */}
-        <form onSubmit={handleAddUrl} className="flex flex-col justify-between p-4 rounded-2xl border border-slate-200 bg-slate-50">
+        {/* 2. Direct External URL Input (No nested form tag to avoid page reload) */}
+        <div className="flex flex-col justify-between p-4 rounded-2xl border border-slate-200 bg-slate-50">
           <div className="space-y-1.5">
             <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
               <LinkIcon className="w-3.5 h-3.5 text-slate-500" />
@@ -143,19 +143,27 @@ export function ImageUploader({ images, onChange }: ImageUploaderProps) {
               type="url"
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleAddUrl();
+                }
+              }}
               placeholder="https://images.unsplash.com/photo-..."
               className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
             />
           </div>
           <button
-            type="submit"
+            type="button"
+            onClick={handleAddUrl}
             disabled={!urlInput.trim()}
             className="mt-2.5 w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-emerald-600 disabled:opacity-40 text-white text-xs font-bold transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Añadir URL</span>
+            <span>Añadir Imagen</span>
           </button>
-        </form>
+        </div>
 
       </div>
 
@@ -185,7 +193,7 @@ export function ImageUploader({ images, onChange }: ImageUploaderProps) {
                   <button
                     type="button"
                     onClick={() => handleSetPrimary(idx)}
-                    className="text-xs text-slate-500 hover:text-emerald-700 font-bold"
+                    className="text-xs text-slate-500 hover:text-emerald-700 font-bold cursor-pointer"
                   >
                     Hacer portada
                   </button>
@@ -196,7 +204,7 @@ export function ImageUploader({ images, onChange }: ImageUploaderProps) {
                 <button
                   type="button"
                   onClick={() => handleRemove(idx)}
-                  className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                  className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                   title="Eliminar foto"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
