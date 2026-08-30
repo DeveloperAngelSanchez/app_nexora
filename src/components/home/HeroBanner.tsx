@@ -1,16 +1,256 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowRight, ChevronLeft, ChevronRight, ShieldCheck, Truck, Zap, ShoppingBag } from 'lucide-react';
+import { 
+  ArrowRight, 
+  ChevronLeft, 
+  ChevronRight, 
+  ShieldCheck, 
+  Truck, 
+  Zap, 
+  ShoppingBag,
+  Sparkles,
+  Star,
+  Check
+} from 'lucide-react';
 import { HeroBannerItem, PublicSiteSettings } from '@/lib/settings';
+import { Product } from '@/types';
+import { useCartStore } from '@/store/cartStore';
 
 interface HeroBannerProps {
   banners?: HeroBannerItem[];
   settings?: PublicSiteSettings;
+  featuredProducts?: Product[];
 }
 
-export function HeroBanner({ banners = [], settings }: HeroBannerProps) {
+const PLACEHOLDER_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect width='400' height='400' fill='%23f1f5f9'/%3E%3Cpath d='M160 180 L240 180 L240 240 L160 240 Z' fill='%23cbd5e1'/%3E%3Ctext x='50%25' y='52%25' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-family='sans-serif' font-size='14'%3ESin Imagen%3C/text%3E%3C/svg%3E";
+
+/**
+ * Dynamic Interactive Featured Products Carousel inside the Hero Section
+ */
+function HeroFeaturedShowcase({ 
+  products = [], 
+  storeName,
+  currencySymbol 
+}: { 
+  products: Product[]; 
+  storeName: string;
+  currencySymbol: string;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [isAdded, setIsAdded] = useState(false);
+  const { addItem } = useCartStore();
+
+  const total = products.length;
+
+  const nextProduct = useCallback(() => {
+    if (total > 1) {
+      setCurrentIndex((prev) => (prev + 1) % total);
+    }
+  }, [total]);
+
+  const prevProduct = useCallback(() => {
+    if (total > 1) {
+      setCurrentIndex((prev) => (prev - 1 + total) % total);
+    }
+  }, [total]);
+
+  // Auto-play interval
+  useEffect(() => {
+    if (total <= 1 || isPaused) return;
+    const timer = setInterval(() => {
+      nextProduct();
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [total, isPaused, nextProduct]);
+
+  // Fallback if no products exist
+  if (total === 0) {
+    return (
+      <div className="w-full max-w-sm aspect-square rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50/50 to-slate-50 border border-emerald-200/80 p-8 flex flex-col items-center justify-center text-center space-y-4 shadow-sm">
+        <div className="w-16 h-16 rounded-2xl bg-white border border-emerald-200 flex items-center justify-center text-emerald-600 shadow-xs">
+          <Zap className="w-8 h-8 fill-emerald-600" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-slate-900">Bienvenido a {storeName}</h3>
+          <p className="text-xs text-slate-500 mt-1">Explora productos disponibles y promociones en tiempo real.</p>
+        </div>
+        <Link
+          href="/catalogo"
+          className="text-xs font-bold text-emerald-600 hover:text-emerald-700 inline-flex items-center gap-1"
+        >
+          <span>Ver Catálogo Completo</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+    );
+  }
+
+  const currentProduct = products[currentIndex];
+  const imageSrc = currentProduct.images && currentProduct.images.length > 0
+    ? currentProduct.images[0]
+    : PLACEHOLDER_IMG;
+  const hasDiscount = currentProduct.regularPrice > currentProduct.price;
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addItem(currentProduct, 1);
+    setIsAdded(true);
+    setTimeout(() => setIsAdded(false), 1600);
+  };
+
+  return (
+    <div 
+      className="w-full max-w-sm rounded-3xl bg-white border border-slate-200 shadow-md hover:shadow-xl hover:border-emerald-400 transition-all duration-300 overflow-hidden flex flex-col justify-between group/card"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      {/* Top Bar: Badge & Navigation Controls */}
+      <div className="p-3.5 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold uppercase tracking-wider shadow-xs">
+            <Sparkles className="w-3 h-3 fill-white" />
+            <span>Destacado</span>
+          </span>
+          {currentProduct.discountPercentage > 0 && (
+            <span className="inline-flex items-center text-[10px] font-extrabold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+              -{currentProduct.discountPercentage}%
+            </span>
+          )}
+        </div>
+
+        {/* Counter and Mini Controls */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-mono font-bold text-slate-400">
+            {currentIndex + 1} / {total}
+          </span>
+          {total > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={prevProduct}
+                className="p-1 rounded-lg bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 shadow-xs transition-colors cursor-pointer"
+                aria-label="Producto anterior"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={nextProduct}
+                className="p-1 rounded-lg bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 shadow-xs transition-colors cursor-pointer"
+                aria-label="Siguiente producto"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Product Image Container */}
+      <Link 
+        href={`/producto/${currentProduct.slug}`}
+        className="relative block aspect-square sm:aspect-[4/3] p-5 bg-gradient-to-b from-white to-slate-50/60 overflow-hidden cursor-pointer"
+      >
+        <img
+          key={currentProduct.id}
+          src={imageSrc}
+          alt={currentProduct.name}
+          className="w-full h-full object-contain object-center group-hover/card:scale-108 transition-all duration-500 animate-fadeIn"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = PLACEHOLDER_IMG;
+          }}
+        />
+      </Link>
+
+      {/* Product Information */}
+      <div className="p-4 pt-2 flex flex-col gap-2.5 bg-white">
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            {currentProduct.brand ? (
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                {currentProduct.brand}
+              </span>
+            ) : <span />}
+
+            <div className="flex items-center gap-1">
+              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+              <span className="text-[11px] font-bold text-slate-800">{currentProduct.rating}</span>
+            </div>
+          </div>
+
+          <Link href={`/producto/${currentProduct.slug}`} className="block">
+            <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover/card:text-emerald-600 transition-colors line-clamp-2 leading-snug">
+              {currentProduct.name}
+            </h3>
+          </Link>
+        </div>
+
+        {/* Price & Action Button */}
+        <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
+          <div>
+            {hasDiscount && (
+              <span className="text-[10px] text-slate-400 line-through block leading-none">
+                {currentProduct.symbol || currencySymbol} {currentProduct.regularPrice.toFixed(2)}
+              </span>
+            )}
+            <span className="text-base font-black text-slate-950">
+              {currentProduct.symbol || currencySymbol} {currentProduct.price.toFixed(2)}
+            </span>
+          </div>
+
+          <button
+            onClick={handleAddToCart}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all touch-press cursor-pointer ${
+              isAdded
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 shadow-xs'
+            }`}
+            title="Añadir al carrito"
+            aria-label="Añadir al carrito"
+          >
+            {isAdded ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-white" />
+                <span>Agregado</span>
+              </>
+            ) : (
+              <>
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>Comprar</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Interactive Dots */}
+        {total > 1 && (
+          <div className="flex items-center justify-center gap-1.5 pt-1">
+            {products.slice(0, 6).map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentIndex(idx)}
+                className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                  currentIndex === idx
+                    ? 'w-5 bg-emerald-600'
+                    : 'w-1.5 bg-slate-200 hover:bg-slate-300'
+                }`}
+                aria-label={`Ver producto ${idx + 1}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function HeroBanner({ 
+  banners = [], 
+  settings,
+  featuredProducts = [] 
+}: HeroBannerProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const activeBanners = banners.filter((b) => b.is_active);
@@ -48,7 +288,8 @@ export function HeroBanner({ banners = [], settings }: HeroBannerProps) {
           <div className="relative rounded-3xl bg-white border border-slate-200 shadow-lg p-6 sm:p-10 lg:p-14 overflow-hidden">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               
-              <div className="lg:col-span-8 space-y-6">
+              {/* Left Column: Store Branding and Value Proposition */}
+              <div className="lg:col-span-7 space-y-6">
                 <div className="space-y-2">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold tracking-wider">
                     <Zap className="w-3.5 h-3.5 fill-emerald-600" />
@@ -99,22 +340,13 @@ export function HeroBanner({ banners = [], settings }: HeroBannerProps) {
                 </div>
               </div>
 
-              <div className="lg:col-span-4 flex justify-center">
-                <div className="w-full max-w-sm aspect-square rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50/50 to-slate-50 border border-emerald-200/80 p-8 flex flex-col items-center justify-center text-center space-y-4 shadow-sm">
-                  <div className="w-16 h-16 rounded-2xl bg-white border border-emerald-200 flex items-center justify-center text-emerald-600 shadow-xs">
-                    <Zap className="w-8 h-8 fill-emerald-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">Bienvenido a {storeName}</h3>
-                    <p className="text-xs text-slate-500 mt-1">Explora productos disponibles y promociones en tiempo real.</p>
-                  </div>
-                  <Link
-                    href="/catalogo"
-                    className="text-xs font-bold text-emerald-600 hover:text-emerald-700 underline"
-                  >
-                    Ver Catálogo Completo →
-                  </Link>
-                </div>
+              {/* Right Column: Dynamic Featured Products Showcase */}
+              <div className="lg:col-span-5 flex justify-center lg:justify-end">
+                <HeroFeaturedShowcase 
+                  products={featuredProducts} 
+                  storeName={storeName}
+                  currencySymbol={currencySymbol}
+                />
               </div>
 
             </div>
@@ -180,13 +412,13 @@ export function HeroBanner({ banners = [], settings }: HeroBannerProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <Truck className="w-4 h-4 text-emerald-600" />
-                  <span>Despacho express Lima & Provincias</span>
+                  <span>Despacho express Lima y Provincias</span>
                 </div>
               </div>
             </div>
 
-            {/* Right Image Showcase */}
-            <div className="lg:col-span-5 flex justify-center">
+            {/* Right Image / Featured Showcase */}
+            <div className="lg:col-span-5 flex justify-center lg:justify-end">
               {slide.banner_image ? (
                 <div className="relative w-full max-w-md aspect-square rounded-2xl overflow-hidden bg-slate-50 border border-slate-200/80 shadow-md group">
                   <img
@@ -206,15 +438,11 @@ export function HeroBanner({ banners = [], settings }: HeroBannerProps) {
                   )}
                 </div>
               ) : (
-                <div className="w-full max-w-md aspect-square rounded-2xl bg-gradient-to-br from-emerald-50 to-slate-100 border border-slate-200 flex flex-col items-center justify-center p-8 text-center space-y-3">
-                  <Zap className="w-12 h-12 text-emerald-600" />
-                  <p className="font-bold text-slate-800 text-base">{slide.title}</p>
-                  {slide.discount_value && (
-                    <span className="px-3 py-1 bg-emerald-600 text-white rounded-full text-xs font-bold">
-                      {slide.discount_value}% OFF
-                    </span>
-                  )}
-                </div>
+                <HeroFeaturedShowcase 
+                  products={featuredProducts} 
+                  storeName={storeName}
+                  currencySymbol={currencySymbol}
+                />
               )}
             </div>
 

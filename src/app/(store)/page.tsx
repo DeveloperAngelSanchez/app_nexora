@@ -1,7 +1,6 @@
 import React from 'react';
 import { HeroBanner } from '@/components/home/HeroBanner';
 import { CategoryPills } from '@/components/home/CategoryPills';
-import { FeaturedCarousel } from '@/components/home/FeaturedCarousel';
 import { ProductGrid } from '@/components/products/ProductGrid';
 import { getAllProducts, getCategories, getFeaturedProducts } from '@/lib/catalog';
 import { getPublicSiteSettings, getActiveHeroBanners } from '@/lib/settings';
@@ -26,18 +25,17 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f8fafc]">
-      {/* 1. Dynamic Hero Banner (from Supabase promotions or clean dynamic store fallback) */}
-      <HeroBanner banners={heroBanners} settings={settings} />
+      {/* 1. Dynamic Hero Banner with integrated Featured Products Showcase Carousel */}
+      <HeroBanner 
+        banners={heroBanners} 
+        settings={settings} 
+        featuredProducts={featuredProducts} 
+      />
 
-      {/* 2. Featured Products Carousel (products marked as "Destacados") */}
-      {featuredProducts.length > 0 && (
-        <FeaturedCarousel products={featuredProducts} />
-      )}
-
-      {/* 3. Category Pills (100% Real from Supabase categories) */}
+      {/* 2. Category Pills (100% Real from Supabase categories) */}
       <CategoryPills categories={categories} />
 
-      {/* 4. Products Grid (100% Real from Supabase products) */}
+      {/* 3. Products Grid (100% Real from Supabase products) */}
       <ProductGrid initialProducts={allProducts} />
 
       {/* 5. Direct WhatsApp Consultation Banner - 100% Dynamic from site_settings */}
