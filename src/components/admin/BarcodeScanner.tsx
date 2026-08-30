@@ -49,7 +49,7 @@ function playSuccessBeep() {
 function triggerHaptic() {
   try {
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate([60, 40, 60]);
+      navigator.vibrate([80, 50, 80]);
     }
   } catch {
     // Ignore
@@ -92,7 +92,7 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
     scanCooldownRef.current = true;
     setTimeout(() => {
       scanCooldownRef.current = false;
-    }, 1500);
+    }, 1800);
 
     setLastScanned(trimmed);
     playSuccessBeep();
@@ -124,8 +124,9 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
             Html5QrcodeSupportedFormats.QR_CODE,
           ],
           verbose: false,
+          // CRITICAL: disable native BarcodeDetector on iOS/Safari because WebKit's BarcodeDetector only supports QR codes and ignores EAN-13!
           experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true,
+            useBarCodeDetectorIfSupported: false,
           }
         });
       }
@@ -135,27 +136,17 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
       };
 
       const qrCodeErrorCallback = () => {
-        // Continuous decoding frame errors are expected and ignored
+        // Continuous frame errors are normal while searching
       };
 
-      // High-performance barcode configuration
+      // iOS Safari and mobile optimized configuration:
+      // We do NOT pass a restrictive qrbox so ZXing processes the full uncropped frame without WebKit pixel ratio scaling bugs
       const config: any = {
-        fps: 20,
-        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-          // Optimized rectangular scanning zone for 1D barcodes (EAN-13, UPC, Code 128)
-          const width = Math.min(Math.floor(viewfinderWidth * 0.88), 380);
-          const height = Math.min(Math.floor(viewfinderHeight * 0.45), 180);
-          return {
-            width: Math.max(width, 240),
-            height: Math.max(height, 120),
-          };
-        },
+        fps: 25,
         videoConstraints: {
           facingMode: { ideal: 'environment' },
-          width: { min: 640, ideal: 1920, max: 2560 },
-          height: { min: 480, ideal: 1080, max: 1440 },
-          focusMode: 'continuous',
-          advanced: [{ focusMode: 'continuous' }]
+          width: { ideal: 1280, min: 640 },
+          height: { ideal: 720, min: 480 },
         }
       };
 
@@ -181,11 +172,11 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
       console.error('Error starting barcode scanner:', err);
       const msg = err?.message || '';
       if (msg.includes('Permission') || msg.includes('NotAllowedError')) {
-        setErrorMessage('Permiso de cámara denegado. Por favor, permite el acceso a la cámara en los ajustes de tu navegador.');
+        setErrorMessage('Permiso de cámara denegado. Por favor, permite el acceso a la cámara en los ajustes de Safari/Chrome.');
       } else if (msg.includes('NotFound') || msg.includes('DevicesNotFoundError')) {
         setErrorMessage('No se encontró ninguna cámara disponible en este dispositivo.');
       } else {
-        setErrorMessage('No se pudo acceder a la cámara. Verifica los permisos de tu navegador o asegúrate de usar HTTPS.');
+        setErrorMessage('No se pudo acceder a la cámara. Verifica los permisos del navegador.');
       }
     } finally {
       setIsStarting(false);
@@ -201,7 +192,7 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
         const devices = await Html5Qrcode.getCameras();
         if (mounted && devices && devices.length > 0) {
           setCameras(devices);
-          // Prefer back/rear camera on smartphones
+          // Prefer back/rear camera on smartphones (iPhone main back camera)
           const backCamIndex = devices.findIndex((d) => 
             d.label.toLowerCase().includes('back') || 
             d.label.toLowerCase().includes('rear') || 
@@ -253,7 +244,7 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
     }
   };
 
-  // Switch camera (front / back)
+  // Switch camera (front / back / ultra-wide)
   const switchCamera = async () => {
     if (cameras.length <= 1) return;
     const nextIndex = (currentCameraIndex + 1) % cameras.length;
@@ -269,7 +260,7 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
         <div className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-xs font-bold tracking-wider text-white uppercase drop-shadow-md">
-            Escáner Activo
+            Escáner HD Activo
           </span>
         </div>
 
@@ -325,7 +316,7 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
           className="w-full h-full [&>video]:w-full [&>video]:h-full [&>video]:object-cover"
         />
 
-        {/* Viewfinder Target Graphic Overlay (Aligned to rectangular barcode shape) */}
+        {/* Viewfinder Target Graphic Overlay */}
         {isScanning && !errorMessage && (
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
             
@@ -338,17 +329,19 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
               <div className="absolute -bottom-1.5 -left-1.5 w-6 h-6 border-b-4 border-l-4 border-emerald-400 rounded-bl-xl" />
               <div className="absolute -bottom-1.5 -right-1.5 w-6 h-6 border-b-4 border-r-4 border-emerald-400 rounded-br-xl" />
 
-              {/* Center guide mark */}
-              <div className="absolute top-1/2 left-2 right-2 h-[1px] bg-emerald-400/30 -translate-y-1/2" />
-
               {/* Laser Scanning Animation Line */}
               <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_15px_#10b981] animate-[scan_2s_ease-in-out_infinite]" />
             </div>
 
-            <p className="mt-4 text-[11px] font-bold text-white/95 bg-black/70 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15 tracking-wide shadow-md flex items-center gap-1.5">
-              <BarcodeIcon className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Coloca el código de barras horizontalmente</span>
-            </p>
+            <div className="mt-4 flex flex-col items-center gap-1">
+              <p className="text-[11px] font-bold text-white/95 bg-black/70 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15 tracking-wide shadow-md flex items-center gap-1.5">
+                <BarcodeIcon className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Apunta al código a unos 15–20 cm</span>
+              </p>
+              <p className="text-[10px] text-slate-300 font-medium bg-black/50 px-2 py-0.5 rounded">
+                Gira el celular si el código está vertical
+              </p>
+            </div>
           </div>
         )}
 
