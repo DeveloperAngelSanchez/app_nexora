@@ -20,6 +20,7 @@ import {
 import { ImageUploader } from './ImageUploader';
 import { createProduct, updateProduct } from '@/lib/admin/products';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
+import { useRemoteScanHost } from '@/lib/admin/useRemoteScanSession';
 
 interface CategoryOption {
   id: string;
@@ -38,6 +39,7 @@ export function ProductForm({ initialData, categories, isEditing = false }: Prod
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [justScanned, setJustScanned] = useState(false);
 
   // Form states
   const [name, setName] = useState(initialData?.name || '');
@@ -45,6 +47,15 @@ export function ProductForm({ initialData, categories, isEditing = false }: Prod
   const [barcode, setBarcode] = useState(
     initialData?.barcode || (!isEditing ? searchParams?.get('barcode') || '' : '')
   );
+
+  // Continuous background remote scan receiver (fills barcode in real-time even with modal closed!)
+  useRemoteScanHost((scanData) => {
+    if (scanData?.barcode) {
+      setBarcode(scanData.barcode);
+      setJustScanned(true);
+      setTimeout(() => setJustScanned(false), 3000);
+    }
+  });
   const [brandName, setBrandName] = useState(initialData?.brand_name || '');
   const [categoryId, setCategoryId] = useState(initialData?.category_id || categories[0]?.id || '');
   const [price, setPrice] = useState(initialData?.price ? String(initialData.price) : '');
@@ -234,9 +245,16 @@ export function ProductForm({ initialData, categories, isEditing = false }: Prod
               {/* Barcode Field with Scan Button */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-700">
-                    Código de Barras (EAN / UPC / SKU)
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Código de Barras (EAN / UPC / SKU)
+                    </label>
+                    {justScanned && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full animate-bounce">
+                        ✓ ¡Escaneado desde tu móvil!
+                      </span>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => setIsScannerOpen(true)}
@@ -252,7 +270,11 @@ export function ProductForm({ initialData, categories, isEditing = false }: Prod
                     value={barcode}
                     onChange={(e) => setBarcode(e.target.value)}
                     placeholder="ej. 6957303893456"
-                    className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold"
+                    className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl border text-slate-900 text-xs font-mono placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold transition-all ${
+                      justScanned
+                        ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/30'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
                   />
                   <button
                     type="button"

@@ -17,6 +17,21 @@ export function generateSessionCode(): string {
   return `${prefix}-${numbers}`;
 }
 
+export function getPersistentSessionCode(): string {
+  if (typeof window === 'undefined') return 'NX-8888';
+  const STORAGE_KEY = 'nexora_remote_scanner_session_code';
+  try {
+    let saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved || saved.length < 5) {
+      saved = generateSessionCode();
+      localStorage.setItem(STORAGE_KEY, saved);
+    }
+    return saved;
+  } catch {
+    return 'NX-8888';
+  }
+}
+
 // Crisp host receiver beep
 function playHostReceivedBeep() {
   try {
@@ -30,7 +45,7 @@ function playHostReceivedBeep() {
     osc.frequency.setValueAtTime(800, ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(1600, ctx.currentTime + 0.08);
 
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.setValueAtTime(0.35, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
 
     osc.connect(gain);
@@ -44,7 +59,7 @@ function playHostReceivedBeep() {
 }
 
 /**
- * Host Hook (Desktop): Creates session, listens for incoming scans from paired mobile
+ * Host Hook (Desktop): Creates/maintains persistent session, listens for incoming scans from paired mobile
  */
 export function useRemoteScanHost(onBarcodeReceived?: (data: ScannedBarcodePayload) => void) {
   const [sessionCode, setSessionCode] = useState<string>('');
@@ -59,9 +74,15 @@ export function useRemoteScanHost(onBarcodeReceived?: (data: ScannedBarcodePaylo
   }, [onBarcodeReceived]);
 
   const startSession = useCallback(() => {
-    const code = generateSessionCode();
+    const code = getPersistentSessionCode();
     setSessionCode(code);
     return code;
+  }, []);
+
+  // Initialize session on mount
+  useEffect(() => {
+    const code = getPersistentSessionCode();
+    setSessionCode(code);
   }, []);
 
   useEffect(() => {
