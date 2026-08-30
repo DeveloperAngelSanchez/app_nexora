@@ -56,10 +56,10 @@ function triggerHaptic() {
 }
 
 let wasmModuleInitialized = false;
-async function initZXingWasm() {
+function initZXingWasm() {
   if (wasmModuleInitialized) return;
   try {
-    await prepareZXingModule({
+    prepareZXingModule({
       overrides: {
         locateFile: (path: string, prefix: string) => {
           if (path.endsWith('.wasm')) {
@@ -72,7 +72,6 @@ async function initZXingWasm() {
     wasmModuleInitialized = true;
   } catch (err) {
     console.warn('Local WASM init fallback to CDN:', err);
-    // zxing-wasm will fall back to its internal CDN
   }
 }
 

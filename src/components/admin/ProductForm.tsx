@@ -121,7 +121,7 @@ export function ProductForm({ initialData, categories, isEditing = false }: Prod
       slug: slug.trim(),
       barcode: barcode.trim() || null,
       brand: brandName.trim() || 'Genérico',
-      category_id: categoryId || categories[0]?.id || '',
+      category_id: categoryId || (categories.length > 0 ? categories[0].id : ''),
       price: priceNum,
       regular_price: regularPriceNum,
       stock: stockNum,

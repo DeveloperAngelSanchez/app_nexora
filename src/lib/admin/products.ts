@@ -135,7 +135,7 @@ export async function createProduct(input: ProductInput) {
         name: input.name,
         barcode: input.barcode ? input.barcode.trim() : null,
         brand_name: input.brand || 'Genérico',
-        category_id: input.category_id || null,
+        category_id: (input.category_id && input.category_id.trim() !== '') ? input.category_id.trim() : null,
         price: input.price,
         regular_price: input.regular_price || null,
         discount_percentage,
@@ -150,7 +150,6 @@ export async function createProduct(input: ProductInput) {
         is_active: input.is_active ?? true,
         description: input.description || '',
         features: input.features || [],
-        variants: input.variants || [],
         source_url: input.source_url || null,
       },
     ])
@@ -166,6 +165,28 @@ export async function createProduct(input: ProductInput) {
       friendlyMessage = 'La URL (slug) ya existe. Por favor cambia el nombre o modifica el slug.';
     }
     return { success: false, error: friendlyMessage };
+  }
+
+  // Handle variants if passed
+  if (input.variants && input.variants.length > 0 && data?.id) {
+    const variantInserts: any[] = [];
+    for (const v of input.variants) {
+      if (v.options && v.options.length > 0) {
+        for (let i = 0; i < v.options.length; i++) {
+          const opt = v.options[i];
+          variantInserts.push({
+            product_id: data.id,
+            title: `${v.name}: ${opt}`,
+            stock: Math.floor(input.stock / (v.options.length || 1)),
+            sort_order: i,
+            is_active: true,
+          });
+        }
+      }
+    }
+    if (variantInserts.length > 0) {
+      await supabase.from('product_variants').insert(variantInserts);
+    }
   }
 
   revalidatePath('/nxd-92f/productos');
@@ -194,7 +215,7 @@ export async function updateProduct(id: string, input: Partial<ProductInput>) {
   if (input.slug !== undefined) updateData.slug = input.slug;
   if (input.barcode !== undefined) updateData.barcode = input.barcode ? input.barcode.trim() : null;
   if (input.brand !== undefined) updateData.brand_name = input.brand;
-  if (input.category_id !== undefined) updateData.category_id = input.category_id;
+  if (input.category_id !== undefined) updateData.category_id = (input.category_id && input.category_id.trim() !== '') ? input.category_id.trim() : null;
   if (input.price !== undefined) updateData.price = input.price;
   if (input.regular_price !== undefined) updateData.regular_price = input.regular_price;
   if (input.currency !== undefined) updateData.currency = input.currency;
@@ -207,7 +228,6 @@ export async function updateProduct(id: string, input: Partial<ProductInput>) {
   if (input.is_active !== undefined) updateData.is_active = input.is_active;
   if (input.description !== undefined) updateData.description = input.description;
   if (input.features !== undefined) updateData.features = input.features;
-  if (input.variants !== undefined) updateData.variants = input.variants;
   if (input.source_url !== undefined) updateData.source_url = input.source_url;
 
   if (discount_percentage !== undefined) {

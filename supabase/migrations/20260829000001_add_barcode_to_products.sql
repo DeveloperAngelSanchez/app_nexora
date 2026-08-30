@@ -13,7 +13,8 @@ ON public.products(barcode)
 WHERE barcode IS NOT NULL;
 
 -- 3. Update view_catalog_products to include barcode
-CREATE OR REPLACE VIEW public.view_catalog_products AS
+DROP VIEW IF EXISTS public.view_catalog_products CASCADE;
+CREATE VIEW public.view_catalog_products AS
 SELECT
     p.id,
     p.slug,
