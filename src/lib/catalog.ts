@@ -41,6 +41,37 @@ export function getLocalBrands(): string[] {
 }
 
 /**
+ * Searches active products by term (name, brand, or category) with limit
+ */
+export async function searchLiveProducts(queryText: string, limit = 5): Promise<Product[]> {
+  const clean = queryText.trim();
+  if (!clean || clean.length < 2) return [];
+
+  try {
+    const supabase = getPublicSupabaseClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from('products')
+      .select(`
+        *,
+        categories:category_id (
+          id,
+          name
+        )
+      `)
+      .eq('is_active', true)
+      .or(`name.ilike.%${clean}%,brand_name.ilike.%${clean}%`)
+      .limit(limit);
+
+    if (error || !data) return [];
+    return data.map(mapDbProduct);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Maps Supabase DB Product row to Application Product interface
  */
 function mapDbProduct(row: any): Product {
@@ -204,6 +235,43 @@ export async function getRelatedProducts(
   return products
     .filter((p) => p.id !== currentId && p.categoryId === categoryId)
     .slice(0, limit);
+}
+
+export async function getCategoryBySlug(slug: string): Promise<Category | null> {
+  try {
+    const supabase = getPublicSupabaseClient();
+    if (!supabase) return null;
+
+    // Try slug first, or id fallback
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('is_active', true)
+      .or(`slug.eq.${slug},id.eq.${slug}`)
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      slug: data.slug,
+      productCount: data.product_count || 0,
+      icon: data.icon || undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function getProductsByCategory(categoryIdOrSlug: string): Promise<Product[]> {
+  const products = await getAllProducts();
+  return products.filter(
+    (p) => p.categoryId === categoryIdOrSlug || p.categoryName.toLowerCase() === categoryIdOrSlug.toLowerCase()
+  );
 }
 
 export function formatCurrency(amount: number, symbol = 'S/'): string {

@@ -2,10 +2,10 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'NeXora Tech | Tienda y Panel Administrativo',
-    short_name: 'NeXora',
-    description: 'Tienda tecnológica y panel de administración con escáner de inventario.',
-    start_url: '/nxd-92f/productos',
+    name: 'NeXora Store Perú | Tienda Online de Tecnología',
+    short_name: 'NeXora Store',
+    description: 'Tienda online oficial en Perú de accesorios tecnológicos, audio y gadgets con envíos a nivel nacional.',
+    start_url: '/',
     display: 'standalone',
     background_color: '#0f172a',
     theme_color: '#10b981',

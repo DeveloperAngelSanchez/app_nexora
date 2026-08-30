@@ -192,6 +192,9 @@ export async function createProduct(input: ProductInput) {
   revalidatePath('/nxd-92f/productos');
   revalidatePath('/catalogo');
   revalidatePath('/');
+  if (data?.slug) {
+    revalidatePath(`/producto/${data.slug}`);
+  }
   return { success: true, data };
 }
 

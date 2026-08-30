@@ -57,7 +57,7 @@ export function CategoryPills({ categories = [] }: CategoryPillsProps) {
           {categories.map((category) => (
             <Link
               key={category.id}
-              href={`/catalogo?category=${category.id}`}
+              href={`/categoria/${category.slug || category.id}`}
               className="flex items-center gap-2.5 bg-slate-50 hover:bg-white border border-slate-200 hover:border-emerald-500 hover:shadow-xs px-4 py-2.5 rounded-full shrink-0 transition-all touch-press"
             >
               {iconMap[category.id] || <Folder className="w-4 h-4 text-slate-400" />}

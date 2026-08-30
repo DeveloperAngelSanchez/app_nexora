@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   ArrowRight, 
   ChevronLeft, 
@@ -152,17 +153,20 @@ function HeroFeaturedShowcase({
       {/* 2. Image Area: Fixed 155px Height with Smooth Fade Transition */}
       <Link 
         href={`/producto/${currentProduct.slug}`}
-        className="h-[155px] w-full p-3 bg-gradient-to-b from-white to-slate-50/50 flex items-center justify-center relative overflow-hidden cursor-pointer shrink-0"
+        className="h-[155px] w-full p-2 bg-gradient-to-b from-white to-slate-50/50 flex items-center justify-center relative overflow-hidden cursor-pointer shrink-0"
       >
-        <img
-          key={currentProduct.id}
-          src={imageSrc}
-          alt={currentProduct.name}
-          className="max-h-full max-w-full object-contain group-hover/card:scale-105 transition-transform duration-300 animate-hero-fade"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = PLACEHOLDER_IMG;
-          }}
-        />
+        <div className="relative w-full h-full">
+          <Image
+            key={currentProduct.id}
+            src={imageSrc}
+            alt={`Foto de ${currentProduct.name}`}
+            fill
+            priority
+            sizes="300px"
+            className="object-contain group-hover/card:scale-105 transition-transform duration-300 animate-hero-fade p-2"
+            unoptimized={imageSrc.startsWith('data:')}
+          />
+        </div>
       </Link>
 
       {/* 3. Product Info Area: Fixed Height with No Layout Shifts */}
@@ -429,13 +433,17 @@ export function HeroBanner({
             <div className="lg:col-span-5 flex justify-center lg:justify-end">
               {slide.banner_image ? (
                 <div className="relative w-full max-w-[320px] sm:max-w-[340px] h-[360px] rounded-3xl overflow-hidden bg-slate-50 border border-slate-200 shadow-sm group">
-                  <img
+                  <Image
                     src={slide.banner_image}
                     alt={slide.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    fill
+                    priority
+                    sizes="(max-width: 640px) 100vw, 340px"
+                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                    unoptimized={slide.banner_image.startsWith('data:')}
                   />
                   {slide.discount_value && (
-                    <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-md p-2.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between text-xs">
+                    <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-md p-2.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between text-xs z-10">
                       <span className="font-bold text-slate-900 text-[11px]">
                         {slide.discount_type === 'percentage'
                           ? `Descuento de ${slide.discount_value}%`

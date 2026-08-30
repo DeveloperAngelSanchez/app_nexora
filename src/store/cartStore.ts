@@ -5,6 +5,9 @@ import { CartItem, Product } from '@/types';
 interface CartState {
   items: CartItem[];
   isOpen: boolean;
+  freeShippingThreshold: number;
+  defaultShippingCost: number;
+  setShippingConfig: (config: { freeThreshold?: number; defaultCost?: number }) => void;
   openCart: () => void;
   closeCart: () => void;
   toggleCart: () => void;
@@ -23,6 +26,15 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
       isOpen: false,
+      freeShippingThreshold: 150,
+      defaultShippingCost: 10,
+
+      setShippingConfig: ({ freeThreshold, defaultCost }) => {
+        set((state) => ({
+          freeShippingThreshold: freeThreshold !== undefined ? freeThreshold : state.freeShippingThreshold,
+          defaultShippingCost: defaultCost !== undefined ? defaultCost : state.defaultShippingCost,
+        }));
+      },
 
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
@@ -96,8 +108,9 @@ export const useCartStore = create<CartState>()(
       getShippingCost: () => {
         const subtotal = get().getSubtotal();
         if (subtotal === 0) return 0;
-        // Free shipping for orders above S/ 150
-        return subtotal >= 150 ? 0 : 10;
+        const threshold = get().freeShippingThreshold;
+        const cost = get().defaultShippingCost;
+        return subtotal >= threshold ? 0 : cost;
       },
 
       getTotal: () => {

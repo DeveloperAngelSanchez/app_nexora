@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { 
   ShoppingBag, 
   ShieldCheck, 
@@ -112,18 +113,21 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
             </span>
           )}
 
-          <img
-            src={images[selectedImage] || images[0]}
-            alt={product.name}
-            className="w-full h-full object-contain object-center group-hover:scale-105 transition-transform duration-500"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = PLACEHOLDER_IMG;
-            }}
-          />
+          <div className="relative w-full h-full">
+            <Image
+              src={images[selectedImage] || images[0]}
+              alt={`Foto de ${product.name} en NeXora Store Perú`}
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              className="object-contain object-center group-hover:scale-105 transition-transform duration-500 p-2"
+              unoptimized={(images[selectedImage] || images[0]).startsWith('data:')}
+            />
+          </div>
 
           <button
             onClick={handleShare}
-            className="absolute top-4 right-4 p-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors border border-slate-200 shadow-xs cursor-pointer"
+            className="absolute top-4 right-4 p-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors border border-slate-200 shadow-xs cursor-pointer z-10"
             title="Copiar enlace"
             aria-label="Copiar enlace"
           >
@@ -138,14 +142,21 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               <button
                 key={idx}
                 onClick={() => setSelectedImage(idx)}
-                className={`w-18 h-18 rounded-2xl p-2 bg-white border transition-all shrink-0 cursor-pointer ${
+                className={`relative w-18 h-18 rounded-2xl p-2 bg-white border transition-all shrink-0 cursor-pointer overflow-hidden ${
                   selectedImage === idx 
                     ? 'border-emerald-600 ring-2 ring-emerald-600/30' 
                     : 'border-slate-200 opacity-70 hover:opacity-100'
                 }`}
                 aria-label={`Ver imagen ${idx + 1}`}
               >
-                <img src={img} alt="" className="w-full h-full object-contain" />
+                <Image
+                  src={img}
+                  alt={`${product.name} miniatura ${idx + 1}`}
+                  fill
+                  sizes="72px"
+                  className="object-contain p-1"
+                  unoptimized={img.startsWith('data:')}
+                />
               </button>
             ))}
           </div>

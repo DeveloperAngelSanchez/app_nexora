@@ -114,7 +114,7 @@ export function Footer({ settings, categories = [] }: FooterProps) {
               categories.slice(0, 6).map((cat) => (
                 <li key={cat.id}>
                   <Link 
-                    href={`/catalogo?categoria=${cat.slug}`} 
+                    href={`/categoria/${cat.slug || cat.id}`} 
                     className="hover:text-emerald-600 transition-colors flex items-center gap-1.5"
                   >
                     <span>{cat.name}</span>

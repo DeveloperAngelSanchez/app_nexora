@@ -39,7 +39,8 @@ export function CartDrawer({ settings }: CartDrawerProps) {
   const subtotal = getSubtotal();
   const shipping = getShippingCost();
   const total = getTotal();
-  const freeShippingThreshold = settings?.free_shipping_threshold ?? 150;
+  const storeThreshold = useCartStore((state) => state.freeShippingThreshold);
+  const freeShippingThreshold = settings?.free_shipping_threshold ?? storeThreshold ?? 150;
   const currencySymbol = settings?.currency_symbol || 'S/';
   const amountToFreeShipping = Math.max(0, freeShippingThreshold - subtotal);
   const progressPercent = Math.min(100, (subtotal / freeShippingThreshold) * 100);

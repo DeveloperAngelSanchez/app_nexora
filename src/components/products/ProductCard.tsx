@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ShoppingBag, Check, Star, Package } from 'lucide-react';
 import { Product } from '@/types';
 import { useCartStore } from '@/store/cartStore';
@@ -15,6 +16,7 @@ const PLACEHOLDER_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000
 export function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCartStore();
   const [isAdded, setIsAdded] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -45,15 +47,15 @@ export function ProductCard({ product }: ProductCardProps) {
       </div>
 
       {/* Product Image Link */}
-      <Link href={`/producto/${product.slug}`} className="block relative aspect-square p-6 bg-slate-50/70 overflow-hidden group-hover:bg-slate-50 transition-colors">
-        <img
-          src={imageSrc}
-          alt={product.name}
-          loading="lazy"
-          className="w-full h-full object-contain object-center group-hover:scale-108 transition-transform duration-500"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = PLACEHOLDER_IMG;
-          }}
+      <Link href={`/producto/${product.slug}`} className="block relative aspect-square bg-slate-50/70 overflow-hidden group-hover:bg-slate-50 transition-colors">
+        <Image
+          src={imgError ? PLACEHOLDER_IMG : imageSrc}
+          alt={`Comprar ${product.name} en NeXora Store Perú`}
+          fill
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          className="object-contain p-4 group-hover:scale-108 transition-transform duration-500"
+          onError={() => setImgError(true)}
+          unoptimized={imageSrc.startsWith('data:')}
         />
       </Link>
 

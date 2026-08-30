@@ -2,6 +2,7 @@ import React from 'react';
 import { HeroBanner } from '@/components/home/HeroBanner';
 import { CategoryPills } from '@/components/home/CategoryPills';
 import { ProductGrid } from '@/components/products/ProductGrid';
+import { FaqSection } from '@/components/home/FaqSection';
 import { getAllProducts, getCategories, getFeaturedProducts } from '@/lib/catalog';
 import { getPublicSiteSettings, getActiveHeroBanners } from '@/lib/settings';
 import { MessageCircle, Zap } from 'lucide-react';
@@ -35,10 +36,13 @@ export default async function HomePage() {
       {/* 2. Category Pills (100% Real from Supabase categories) */}
       <CategoryPills categories={categories} />
 
-      {/* 3. Products Grid (100% Real from Supabase products) */}
+      {/* 4. Products Grid (100% Real from Supabase products) */}
       <ProductGrid initialProducts={allProducts} />
 
-      {/* 5. Direct WhatsApp Consultation Banner - 100% Dynamic from site_settings */}
+      {/* 5. FAQs Section with Google Rich Snippets Schema */}
+      <FaqSection />
+
+      {/* 6. Direct WhatsApp Consultation Banner - 100% Dynamic from site_settings */}
       <section className="py-12 bg-white border-t border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-gradient-to-r from-emerald-50 via-teal-50/60 to-slate-50 rounded-3xl p-6 sm:p-10 border border-emerald-200/80 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">

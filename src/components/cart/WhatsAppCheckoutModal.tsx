@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, MessageCircle, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
-import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
+import { createOrderAction } from '@/lib/actions/orders';
 
 interface WhatsAppCheckoutModalProps {
   isOpen: boolean;
@@ -12,14 +12,6 @@ interface WhatsAppCheckoutModalProps {
 
 export function WhatsAppCheckoutModal({ isOpen, onClose }: WhatsAppCheckoutModalProps) {
   const { items, getSubtotal, getShippingCost, getTotal, clearCart } = useCartStore();
-
-  const [storeSettings, setStoreSettings] = useState<{
-    whatsapp_number: string;
-    store_name: string;
-  }>({
-    whatsapp_number: '51999999999',
-    store_name: 'NeXora Store',
-  });
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -35,33 +27,6 @@ export function WhatsAppCheckoutModal({ isOpen, onClose }: WhatsAppCheckoutModal
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Fetch live store settings on mount
-  useEffect(() => {
-    async function loadSettings() {
-      try {
-        const supabase = createSupabaseBrowserClient();
-        const { data } = await supabase
-          .from('site_settings')
-          .select('whatsapp_number, store_name')
-          .eq('id', 'main')
-          .maybeSingle();
-
-        if (data) {
-          setStoreSettings({
-            whatsapp_number: data.whatsapp_number || '51999999999',
-            store_name: data.store_name || 'NeXora Store',
-          });
-        }
-      } catch (e) {
-        // graceful fallback to default
-      }
-    }
-
-    if (isOpen) {
-      loadSettings();
-    }
-  }, [isOpen]);
-
   if (!isOpen) return null;
 
   const subtotal = getSubtotal();
@@ -72,7 +37,6 @@ export function WhatsAppCheckoutModal({ isOpen, onClose }: WhatsAppCheckoutModal
     e.preventDefault();
     setErrorMsg(null);
 
-    // Validation
     const cleanPhone = formData.phone.replace(/[^0-9]/g, '');
     if (cleanPhone.length < 9) {
       setErrorMsg('Por favor ingresa un número de teléfono válido (mínimo 9 dígitos).');
@@ -87,46 +51,40 @@ export function WhatsAppCheckoutModal({ isOpen, onClose }: WhatsAppCheckoutModal
     setIsSubmitting(true);
 
     try {
-      const supabase = createSupabaseBrowserClient();
-      
-      const paymentMap: Record<string, string> = {
-        'Yape / Plin': 'whatsapp_yape_plin',
-        'Contraentrega (Lima)': 'contraentrega',
-        'Transferencia BCP/BBVA': 'transferencia',
-        'Tarjeta de Débito/Crédito': 'card',
-      };
-
-      // 1. Insert order to Supabase
-      const { data: orderData } = await supabase
-        .from('orders')
-        .insert({
-          customer_name: formData.fullName.trim(),
-          customer_phone: cleanPhone,
+      // 1. Process and save order through secure Server Action
+      const result = await createOrderAction(
+        {
+          fullName: formData.fullName,
+          phone: cleanPhone,
           city: formData.city,
-          district: formData.district.trim(),
-          address: formData.address.trim(),
-          reference: formData.reference.trim() || null,
-          payment_method: paymentMap[formData.paymentMethod] || 'whatsapp_yape_plin',
-          items: items.map((i) => ({
-            id: i.product.id,
-            name: i.product.name,
-            price: i.product.price,
-            quantity: i.quantity,
-            color: i.selectedColor || null,
-            model: i.selectedModel || null,
-          })),
-          subtotal,
-          shipping_cost: shipping,
-          total,
-          status: 'pending',
-          admin_notes: formData.notes.trim() ? `Nota cliente: ${formData.notes.trim()}` : null,
-        })
-        .select()
-        .single();
+          district: formData.district,
+          address: formData.address,
+          reference: formData.reference,
+          paymentMethod: formData.paymentMethod,
+          notes: formData.notes,
+        },
+        items.map((i) => ({
+          productId: i.product.id,
+          quantity: i.quantity,
+          selectedColor: i.selectedColor,
+          selectedModel: i.selectedModel,
+        }))
+      );
 
-      const orderNumber = orderData?.order_number || 'NEXORA';
+      if (!result.success && result.error) {
+        setErrorMsg(result.error);
+        setIsSubmitting(false);
+        return;
+      }
 
-      // 2. Build WhatsApp message
+      const orderNumber = result.orderNumber || 'NEXORA';
+      const finalSubtotal = result.subtotal ?? subtotal;
+      const finalShipping = result.shippingCost ?? shipping;
+      const finalTotal = result.total ?? total;
+      const storeName = result.storeSettings?.store_name || 'NeXora Store';
+      const rawPhone = result.storeSettings?.whatsapp_number || '51999999999';
+
+      // 2. Build detailed WhatsApp message
       let message = `*SOLICITUD DE PEDIDO #${orderNumber}*\n`;
       message += `------------------------------------\n\n`;
       
@@ -149,28 +107,29 @@ export function WhatsAppCheckoutModal({ isOpen, onClose }: WhatsAppCheckoutModal
       });
 
       message += `\n------------------------------------\n`;
-      message += `Subtotal: S/ ${subtotal.toFixed(2)}\n`;
-      message += `Envío: ${shipping === 0 ? '¡Gratis!' : `S/ ${shipping.toFixed(2)}`}\n`;
-      message += `*TOTAL A PAGAR: S/ ${total.toFixed(2)}*\n`;
+      message += `Subtotal: S/ ${finalSubtotal.toFixed(2)}\n`;
+      message += `Envío: ${finalShipping === 0 ? '¡Gratis!' : `S/ ${finalShipping.toFixed(2)}`}\n`;
+      message += `*TOTAL A PAGAR: S/ ${finalTotal.toFixed(2)}*\n`;
       message += `------------------------------------\n\n`;
       
       if (formData.notes.trim()) {
         message += `📝 Nota adicional: ${formData.notes.trim()}\n\n`;
       }
 
-      message += `Hola ${storeSettings.store_name}, acabo de registrar este pedido en la tienda online. Por favor confirmarme disponibilidad y datos de cuenta / QR para coordinar la entrega. Muchas gracias.`;
+      message += `Hola ${storeName}, acabo de registrar este pedido en la tienda online. Por favor confirmarme disponibilidad y datos de cuenta / QR para coordinar la entrega. Muchas gracias.`;
 
-      // 3. Build WhatsApp URL
-      const targetPhone = storeSettings.whatsapp_number.replace(/[^0-9]/g, '');
-      const formattedTargetPhone = targetPhone.startsWith('51') ? targetPhone : `51${targetPhone}`;
+      // 3. Launch WhatsApp reliably (avoid popup blockers)
+      const targetPhoneClean = rawPhone.replace(/[^0-9]/g, '');
+      const formattedTargetPhone = targetPhoneClean.startsWith('51') ? targetPhoneClean : `51${targetPhoneClean}`;
       const encodedMessage = encodeURIComponent(message);
       const whatsappUrl = `https://wa.me/${formattedTargetPhone}?text=${encodedMessage}`;
-
-      window.open(whatsappUrl, '_blank');
 
       clearCart();
       setIsSubmitting(false);
       onClose();
+
+      // Reliable navigation
+      window.location.href = whatsappUrl;
     } catch (err) {
       console.warn('Error saving order, launching WhatsApp anyway:', err);
       setIsSubmitting(false);

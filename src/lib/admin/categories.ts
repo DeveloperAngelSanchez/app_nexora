@@ -97,6 +97,9 @@ export async function updateCategory(id: string, input: Partial<CategoryInput>) 
   revalidatePath('/nxd-92f/productos');
   revalidatePath('/catalogo');
   revalidatePath('/');
+  if (data?.slug) {
+    revalidatePath(`/categoria/${data.slug}`);
+  }
   return { success: true, data };
 }
 

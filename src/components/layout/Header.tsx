@@ -15,7 +15,7 @@ import {
   Folder
 } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
-import { getLocalProducts } from '@/lib/catalog';
+import { searchLiveProducts } from '@/lib/catalog';
 import { Product, Category } from '@/types';
 import { PublicSiteSettings } from '@/lib/settings';
 import { Logo } from './Logo';
@@ -30,10 +30,11 @@ export function Header({ settings, categories = [] }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  const { toggleCart, getTotalItems } = useCartStore();
+  const { toggleCart, getTotalItems, setShippingConfig } = useCartStore();
   const [totalItems, setTotalItems] = useState(0);
 
   const cleanPhone = (settings?.whatsapp_number || '51999999999').replace(/[^0-9]/g, '');
@@ -43,8 +44,19 @@ export function Header({ settings, categories = [] }: HeaderProps) {
   )}`;
 
   const freeThreshold = settings?.free_shipping_threshold ?? 150;
+  const defaultCost = settings?.default_shipping_cost ?? 10;
   const currencySymbol = settings?.currency_symbol || 'S/';
   const announcementText = settings?.announcement_bar || `⚡ Envío Gratis desde ${currencySymbol} ${freeThreshold}`;
+
+  // Sync live shipping thresholds from Supabase settings to Cart Store
+  useEffect(() => {
+    if (settings) {
+      setShippingConfig({
+        freeThreshold: settings.free_shipping_threshold,
+        defaultCost: settings.default_shipping_cost,
+      });
+    }
+  }, [settings, setShippingConfig]);
 
   useEffect(() => {
     setTotalItems(getTotalItems());
@@ -57,19 +69,28 @@ export function Header({ settings, categories = [] }: HeaderProps) {
     return () => unsub();
   }, []);
 
+  // Debounced live search with real database queries
   useEffect(() => {
-    if (searchQuery.trim().length >= 2) {
-      const all = getLocalProducts();
-      const q = searchQuery.toLowerCase().trim();
-      const matches = all.filter(p => 
-        p.name.toLowerCase().includes(q) || 
-        p.brand.toLowerCase().includes(q) ||
-        p.categoryName.toLowerCase().includes(q)
-      ).slice(0, 5);
-      setSearchResults(matches);
-    } else {
+    const term = searchQuery.trim();
+    if (term.length < 2) {
       setSearchResults([]);
+      setIsSearching(false);
+      return;
     }
+
+    setIsSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const matches = await searchLiveProducts(term, 6);
+        setSearchResults(matches);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
   }, [searchQuery]);
 
   useEffect(() => {
@@ -301,7 +322,7 @@ export function Header({ settings, categories = [] }: HeaderProps) {
               {categories.map((cat) => (
                 <Link
                   key={cat.id}
-                  href={`/catalogo?category=${cat.id}`}
+                  href={`/categoria/${cat.slug || cat.id}`}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-slate-700"
                 >
