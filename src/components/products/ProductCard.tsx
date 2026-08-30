@@ -2,13 +2,15 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ShoppingBag, Check, Star } from 'lucide-react';
+import { ShoppingBag, Check, Star, Package } from 'lucide-react';
 import { Product } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 
 interface ProductCardProps {
   product: Product;
 }
+
+const PLACEHOLDER_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect width='400' height='400' fill='%23f1f5f9'/%3E%3Cpath d='M160 180 L240 180 L240 240 L160 240 Z' fill='%23cbd5e1'/%3E%3Ctext x='50%25' y='52%25' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-family='sans-serif' font-size='14'%3ESin Imagen%3C/text%3E%3C/svg%3E";
 
 export function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCartStore();
@@ -22,16 +24,18 @@ export function ProductCard({ product }: ProductCardProps) {
     setTimeout(() => setIsAdded(false), 1500);
   };
 
-  const imageSrc = product.images && product.images.length > 0 ? product.images[0] : '/placeholder.png';
+  const imageSrc = product.images && product.images.length > 0 ? product.images[0] : PLACEHOLDER_IMG;
 
   return (
     <div className="group relative bg-white border border-slate-200 hover:border-emerald-500 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg flex flex-col justify-between">
       
       {/* Top Badges */}
       <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between pointer-events-none">
-        <span className="text-[10px] font-bold text-slate-700 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-md border border-slate-200 shadow-xs">
-          {product.brand}
-        </span>
+        {product.brand ? (
+          <span className="text-[10px] font-bold text-slate-700 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-md border border-slate-200 shadow-xs">
+            {product.brand}
+          </span>
+        ) : <span />}
 
         {product.discountPercentage > 0 && (
           <span className="text-[10px] font-extrabold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
@@ -48,7 +52,7 @@ export function ProductCard({ product }: ProductCardProps) {
           loading="lazy"
           className="w-full h-full object-contain object-center group-hover:scale-108 transition-transform duration-500"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=400&q=80';
+            (e.target as HTMLImageElement).src = PLACEHOLDER_IMG;
           }}
         />
       </Link>
@@ -65,9 +69,11 @@ export function ProductCard({ product }: ProductCardProps) {
             <span className="text-[10px] text-slate-400">({product.reviewCount})</span>
           </div>
 
-          <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider block mb-1">
-            {product.categoryName}
-          </span>
+          {product.categoryName && (
+            <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider block mb-1">
+              {product.categoryName}
+            </span>
+          )}
           <Link href={`/producto/${product.slug}`} className="block">
             <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-emerald-600 transition-colors line-clamp-2 leading-snug">
               {product.name}
@@ -91,7 +97,7 @@ export function ProductCard({ product }: ProductCardProps) {
           {/* Quick Add Button */}
           <button
             onClick={handleAddToCart}
-            className={`p-2.5 rounded-xl text-xs font-bold flex items-center justify-center transition-all touch-press ${
+            className={`p-2.5 rounded-xl text-xs font-bold flex items-center justify-center transition-all touch-press cursor-pointer ${
               isAdded
                 ? 'bg-emerald-600 text-white'
                 : 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 shadow-xs'

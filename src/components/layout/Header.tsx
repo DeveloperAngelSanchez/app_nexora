@@ -11,14 +11,21 @@ import {
   MessageCircle,
   Truck,
   ShieldCheck,
-  Zap
+  Zap,
+  Folder
 } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { getLocalProducts } from '@/lib/catalog';
-import { Product } from '@/types';
+import { Product, Category } from '@/types';
+import { PublicSiteSettings } from '@/lib/settings';
 import { Logo } from './Logo';
 
-export function Header() {
+interface HeaderProps {
+  settings?: PublicSiteSettings;
+  categories?: Category[];
+}
+
+export function Header({ settings, categories = [] }: HeaderProps) {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,6 +35,16 @@ export function Header() {
 
   const { toggleCart, getTotalItems } = useCartStore();
   const [totalItems, setTotalItems] = useState(0);
+
+  const cleanPhone = (settings?.whatsapp_number || '51999999999').replace(/[^0-9]/g, '');
+  const formattedPhone = cleanPhone.startsWith('51') ? cleanPhone : `51${cleanPhone}`;
+  const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(
+    settings?.whatsapp_message || 'Hola, deseo realizar una consulta'
+  )}`;
+
+  const freeThreshold = settings?.free_shipping_threshold ?? 150;
+  const currencySymbol = settings?.currency_symbol || 'S/';
+  const announcementText = settings?.announcement_bar || `⚡ Envío Gratis desde ${currencySymbol} ${freeThreshold}`;
 
   useEffect(() => {
     setTotalItems(getTotalItems());
@@ -81,24 +98,24 @@ export function Header() {
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5 font-medium text-slate-600">
               <Truck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Envíos express en Lima y todo el Perú vía Olva Courier</span>
+              <span>Envíos express en Lima y todo el Perú</span>
             </span>
             <span className="hidden md:inline-block text-slate-300">•</span>
             <span className="hidden md:flex items-center gap-1.5 font-medium text-slate-600">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Garantía oficial directa de 6 meses</span>
+              <span>Garantía oficial directa</span>
             </span>
           </div>
           
           <div className="flex items-center gap-3 font-semibold">
             <span className="text-emerald-700 font-bold hidden sm:inline">
-              ⚡ Envío Gratis desde S/ 150
+              {announcementText}
             </span>
             <a 
-              href="https://wa.me/51999999999" 
+              href={whatsappUrl} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-slate-700 hover:text-emerald-700 transition-colors"
+              className="inline-flex items-center gap-1 text-slate-700 hover:text-emerald-700 transition-colors cursor-pointer"
             >
               <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
               <span>Asesoría WhatsApp</span>
@@ -115,7 +132,7 @@ export function Header() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 -ml-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 md:hidden transition-colors"
+              className="p-2 -ml-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 md:hidden transition-colors cursor-pointer"
               aria-label="Abrir menú"
             >
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6 text-slate-800" />}
@@ -135,7 +152,7 @@ export function Header() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => setIsSearchFocused(true)}
-                  placeholder="Buscar cargador GaN, case iPhone, MagSafe, audífonos..."
+                  placeholder="Buscar productos en el catálogo..."
                   className="w-full bg-slate-50 hover:bg-slate-100/70 focus:bg-white text-slate-900 text-xs rounded-full pl-10 pr-10 py-2.5 border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all placeholder:text-slate-400 font-normal"
                 />
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
@@ -143,7 +160,7 @@ export function Header() {
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-3 p-1 rounded-full text-slate-400 hover:text-slate-600"
+                    className="absolute right-3 p-1 rounded-full text-slate-400 hover:text-slate-600 cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -188,7 +205,7 @@ export function Header() {
                   <div className="bg-slate-50 p-2 text-center border-t border-slate-100">
                     <button
                       type="submit"
-                      className="text-xs font-bold text-emerald-600 hover:text-emerald-700"
+                      className="text-xs font-bold text-emerald-600 hover:text-emerald-700 cursor-pointer"
                     >
                       Ver todos los resultados para "{searchQuery}" →
                     </button>
@@ -211,7 +228,7 @@ export function Header() {
             {/* Cart Button */}
             <button
               onClick={toggleCart}
-              className="relative flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-full font-semibold text-xs shadow-xs transition-all touch-press"
+              className="relative flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-full font-semibold text-xs shadow-xs transition-all touch-press cursor-pointer"
               aria-label="Abrir carrito de compras"
             >
               <ShoppingBag className="w-4 h-4" />
@@ -233,7 +250,7 @@ export function Header() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar cargador, case, MagSafe..."
+              placeholder="Buscar en el catálogo..."
               className="w-full bg-slate-100 text-slate-900 text-xs rounded-full pl-9 pr-8 py-2.5 border border-slate-200 outline-none placeholder:text-slate-400"
             />
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
@@ -241,7 +258,7 @@ export function Header() {
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-2.5 p-0.5 text-slate-400"
+                className="absolute right-3 top-2.5 p-0.5 text-slate-400 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -253,18 +270,18 @@ export function Header() {
       {/* Mobile Drawer Menu */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs md:hidden flex flex-col justify-end">
-          <div className="bg-white rounded-t-3xl p-6 space-y-6 animate-in slide-in-from-bottom duration-200 shadow-2xl border-t border-slate-200">
+          <div className="bg-white rounded-t-3xl p-6 space-y-6 animate-in slide-in-from-bottom duration-200 shadow-2xl border-t border-slate-200 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <Logo variant="dark" />
               <button
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="p-2 rounded-full text-slate-400 hover:text-slate-700"
+                className="p-2 rounded-full text-slate-400 hover:text-slate-700 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-3 font-semibold text-sm text-slate-800">
+            <div className="space-y-2 font-semibold text-xs text-slate-800">
               <Link
                 href="/"
                 onClick={() => setIsMobileMenuOpen(false)}
@@ -279,28 +296,32 @@ export function Header() {
               >
                 Catálogo Completo
               </Link>
-              <Link
-                href="/catalogo?category=cargadores"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="block p-3 rounded-xl hover:bg-slate-50 transition-colors"
-              >
-                Cargadores GaN UGREEN
-              </Link>
-              <Link
-                href="/catalogo?category=apple"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="block p-3 rounded-xl hover:bg-slate-50 transition-colors"
-              >
-                Accesorios Apple & MagSafe
-              </Link>
+
+              {/* Dynamic Categories from Supabase */}
+              {categories.map((cat) => (
+                <Link
+                  key={cat.id}
+                  href={`/catalogo?category=${cat.id}`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-slate-700"
+                >
+                  <span className="flex items-center gap-2">
+                    <Folder className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{cat.name}</span>
+                  </span>
+                  {cat.productCount !== undefined && cat.productCount > 0 && (
+                    <span className="text-[10px] text-slate-400">({cat.productCount})</span>
+                  )}
+                </Link>
+              ))}
             </div>
 
             <div className="pt-4 border-t border-slate-100 space-y-3">
               <a
-                href="https://wa.me/51999999999"
+                href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-3 rounded-full bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-200"
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-full bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-200 cursor-pointer"
               >
                 <MessageCircle className="w-4 h-4" />
                 <span>Asesoría directa por WhatsApp</span>

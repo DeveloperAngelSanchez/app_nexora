@@ -5,11 +5,22 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Grid, ShoppingBag, MessageCircle } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
+import { PublicSiteSettings } from '@/lib/settings';
 
-export function MobileNav() {
+interface MobileNavProps {
+  settings?: PublicSiteSettings;
+}
+
+export function MobileNav({ settings }: MobileNavProps) {
   const pathname = usePathname();
   const { toggleCart, getTotalItems } = useCartStore();
   const [totalItems, setTotalItems] = useState(0);
+
+  const cleanPhone = (settings?.whatsapp_number || '51999999999').replace(/[^0-9]/g, '');
+  const formattedPhone = cleanPhone.startsWith('51') ? cleanPhone : `51${cleanPhone}`;
+  const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(
+    settings?.whatsapp_message || 'Hola, deseo hacer una consulta'
+  )}`;
 
   useEffect(() => {
     setTotalItems(getTotalItems());
@@ -50,7 +61,7 @@ export function MobileNav() {
         {/* Cart */}
         <button
           onClick={toggleCart}
-          className="flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-800 relative"
+          className="flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-800 relative cursor-pointer"
           aria-label="Carrito"
         >
           <div className="relative">
@@ -66,10 +77,10 @@ export function MobileNav() {
 
         {/* WhatsApp */}
         <a
-          href="https://wa.me/51999999999?text=Hola%20Nexora%20Tech,%20deseo%20hacer%20una%20consulta"
+          href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex flex-col items-center gap-1 text-[11px] font-semibold text-emerald-600"
+          className="flex flex-col items-center gap-1 text-[11px] font-semibold text-emerald-600 cursor-pointer"
         >
           <MessageCircle className="w-5 h-5" />
           <span>Asesor</span>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Save, CheckCircle2, AlertCircle, Settings, Store, Phone, Truck, ShieldCheck } from 'lucide-react';
+import { Save, CheckCircle2, AlertCircle, Phone, Truck, Megaphone, Globe, Share2 } from 'lucide-react';
 import { updateSiteSettings } from '@/lib/admin/settings';
 import { useRouter } from 'next/navigation';
 
@@ -11,10 +11,10 @@ interface SettingsClientProps {
 
 export function SettingsClient({ initialSettings }: SettingsClientProps) {
   const router = useRouter();
-  const [storeName, setStoreName] = useState(initialSettings?.store_name || 'Nexora Tech');
+  const [storeName, setStoreName] = useState(initialSettings?.store_name || 'Nexora Store');
   const [whatsappNumber, setWhatsappNumber] = useState(initialSettings?.whatsapp_number || '51999999999');
   const [whatsappMessage, setWhatsappMessage] = useState(
-    initialSettings?.whatsapp_message || 'Hola Nexora Tech, deseo asesoría sobre un producto'
+    initialSettings?.whatsapp_message || 'Hola, deseo asesoría sobre un producto'
   );
   const [freeShippingThreshold, setFreeShippingThreshold] = useState(
     initialSettings?.free_shipping_threshold !== undefined ? String(initialSettings.free_shipping_threshold) : '150'
@@ -23,6 +23,11 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
     initialSettings?.default_shipping_cost !== undefined ? String(initialSettings.default_shipping_cost) : '10'
   );
   const [announcementBar, setAnnouncementBar] = useState(initialSettings?.announcement_bar || '');
+  const [metaTitle, setMetaTitle] = useState(initialSettings?.meta_title || '');
+  const [metaDescription, setMetaDescription] = useState(initialSettings?.meta_description || '');
+  const [socialInstagram, setSocialInstagram] = useState(initialSettings?.social_instagram || '');
+  const [socialFacebook, setSocialFacebook] = useState(initialSettings?.social_facebook || '');
+  const [socialTiktok, setSocialTiktok] = useState(initialSettings?.social_tiktok || '');
   
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState(false);
@@ -41,6 +46,11 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
       free_shipping_threshold: parseFloat(freeShippingThreshold) || 150,
       default_shipping_cost: parseFloat(defaultShippingCost) || 10,
       announcement_bar: announcementBar.trim() || null,
+      meta_title: metaTitle.trim() || null,
+      meta_description: metaDescription.trim() || null,
+      social_instagram: socialInstagram.trim() || null,
+      social_facebook: socialFacebook.trim() || null,
+      social_tiktok: socialTiktok.trim() || null,
     };
 
     try {
@@ -69,7 +79,7 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
             Configuración General
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-1">
-            Ajusta los canales de venta, números de atención y políticas de envío de la tienda
+            Ajusta los canales de venta, textos de cabecera, pie de página y políticas de envío de la tienda
           </p>
         </div>
 
@@ -97,11 +107,11 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
         </div>
       )}
 
-      {/* WhatsApp & Checkout Card */}
+      {/* WhatsApp & Identity Card */}
       <div className="rounded-3xl border border-slate-200 bg-white p-6 space-y-4 shadow-xs">
         <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
           <Phone className="w-4 h-4 text-emerald-600" />
-          <span>Atención y WhatsApp Checkout</span>
+          <span>Identidad y WhatsApp Checkout</span>
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -118,7 +128,7 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
               className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono font-bold placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
             />
             <p className="text-[11px] text-slate-400">
-              A este número se enviarán los pedidos completados en el carrito.
+              A este número se enviarán los pedidos y consultas desde la web.
             </p>
           </div>
 
@@ -148,6 +158,30 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
         </div>
       </div>
 
+      {/* Announcement Bar Card */}
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 space-y-4 shadow-xs">
+        <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+          <Megaphone className="w-4 h-4 text-emerald-600" />
+          <span>Barra de Anuncios Superior</span>
+        </h2>
+
+        <div className="space-y-1.5">
+          <label className="block text-xs font-bold text-slate-700">
+            Texto del Anuncio Superior (Opcional)
+          </label>
+          <input
+            type="text"
+            value={announcementBar}
+            onChange={(e) => setAnnouncementBar(e.target.value)}
+            placeholder="ej. ⚡ Despachos gratis por compras mayores a S/ 150 a todo el Perú"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 font-medium"
+          />
+          <p className="text-[11px] text-slate-400">
+            Si lo dejas en blanco, mostrará automáticamente el aviso de envío gratis según el umbral configurado.
+          </p>
+        </div>
+      </div>
+
       {/* Shipping & Thresholds Card */}
       <div className="rounded-3xl border border-slate-200 bg-white p-6 space-y-4 shadow-xs">
         <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
@@ -169,7 +203,7 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
               className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
             />
             <p className="text-[11px] text-slate-400">
-              Los pedidos que superen este monto no pagarán costo de envío.
+              Los pedidos que superen este monto tendrán costo de envío gratuito en el carrito.
             </p>
           </div>
 
@@ -186,8 +220,72 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
               className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
             />
             <p className="text-[11px] text-slate-400">
-              Costo por defecto aplicado si no se alcanza el umbral de envío gratis.
+              Costo por defecto aplicado si el pedido no califica para envío gratis.
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* SEO & Description Card */}
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 space-y-4 shadow-xs">
+        <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+          <Globe className="w-4 h-4 text-emerald-600" />
+          <span>Descripción de la Tienda y SEO</span>
+        </h2>
+
+        <div className="space-y-1.5">
+          <label className="block text-xs font-bold text-slate-700">
+            Descripción General (Aparece en el Pie de Página y Meta Tags)
+          </label>
+          <textarea
+            rows={3}
+            value={metaDescription}
+            onChange={(e) => setMetaDescription(e.target.value)}
+            placeholder="Descripción oficial de la tienda..."
+            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 font-normal resize-none"
+          />
+        </div>
+      </div>
+
+      {/* Social Media Card */}
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 space-y-4 shadow-xs">
+        <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+          <Share2 className="w-4 h-4 text-emerald-600" />
+          <span>Redes Sociales (Opcional)</span>
+        </h2>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-slate-700">Instagram</label>
+            <input
+              type="text"
+              value={socialInstagram}
+              onChange={(e) => setSocialInstagram(e.target.value)}
+              placeholder="nexorastore"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-slate-700">Facebook</label>
+            <input
+              type="text"
+              value={socialFacebook}
+              onChange={(e) => setSocialFacebook(e.target.value)}
+              placeholder="nexoratechpe"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-slate-700">TikTok</label>
+            <input
+              type="text"
+              value={socialTiktok}
+              onChange={(e) => setSocialTiktok(e.target.value)}
+              placeholder="nexora.peru"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
+            />
           </div>
         </div>
       </div>

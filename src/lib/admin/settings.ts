@@ -37,23 +37,28 @@ export async function getAdminSiteSettings() {
 }
 
 export async function updateSiteSettings(input: SiteSettingsInput) {
-  const supabase = await createSupabaseServerClient();
+  try {
+    const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from('site_settings')
-    .upsert({
-      id: 'main',
-      ...input,
-      updated_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
+    const { data, error } = await supabase
+      .from('site_settings')
+      .upsert({
+        id: 'main',
+        ...input,
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
 
-  if (error) {
-    throw new Error(error.message);
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath('/nxd-92f/configuracion');
+    revalidatePath('/');
+    revalidatePath('/catalogo');
+    return { success: true, data };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error al guardar configuración' };
   }
-
-  revalidatePath('/nxd-92f/configuracion');
-  revalidatePath('/');
-  return data;
 }

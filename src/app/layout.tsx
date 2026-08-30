@@ -10,14 +10,14 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'NeXora Tech | Accesorios Apple, UGREEN y Tecnología en Perú',
-  description: 'Tienda online tecnológica en Perú. Accesorios para iPhone, Mac, Apple Watch, cargadores GaN Ugreen, cables de alta durabilidad y Tecno Packs con envío express.',
+  title: 'NeXora Store | Tienda Online Oficial Perú',
+  description: 'Tienda online oficial en Perú con despachos a todo el país, garantía directa y atención personalizada por WhatsApp.',
   openGraph: {
-    title: 'NeXora Tech | Accesorios Apple & UGREEN',
-    description: 'Despachos diarios en Lima y provincias, garantía oficial de 6 meses y atención por WhatsApp.',
+    title: 'NeXora Store Perú',
+    description: 'Despachos diarios en Lima y provincias, garantía oficial directa y atención por WhatsApp.',
     type: 'website',
     locale: 'es_PE',
-    siteName: 'NeXora Tech Store',
+    siteName: 'NeXora Store',
   },
   icons: {
     icon: '/favicon.ico',

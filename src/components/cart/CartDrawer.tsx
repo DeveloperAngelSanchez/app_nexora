@@ -14,8 +14,13 @@ import {
 } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { WhatsAppCheckoutModal } from './WhatsAppCheckoutModal';
+import { PublicSiteSettings } from '@/lib/settings';
 
-export function CartDrawer() {
+interface CartDrawerProps {
+  settings?: PublicSiteSettings;
+}
+
+export function CartDrawer({ settings }: CartDrawerProps) {
   const { 
     items, 
     isOpen, 
@@ -34,7 +39,8 @@ export function CartDrawer() {
   const subtotal = getSubtotal();
   const shipping = getShippingCost();
   const total = getTotal();
-  const freeShippingThreshold = 150;
+  const freeShippingThreshold = settings?.free_shipping_threshold ?? 150;
+  const currencySymbol = settings?.currency_symbol || 'S/';
   const amountToFreeShipping = Math.max(0, freeShippingThreshold - subtotal);
   const progressPercent = Math.min(100, (subtotal / freeShippingThreshold) * 100);
 
@@ -60,7 +66,7 @@ export function CartDrawer() {
           </div>
           <button
             onClick={closeCart}
-            className="p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            className="p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
             aria-label="Cerrar carrito"
           >
             <X className="w-5 h-5" />
@@ -73,9 +79,9 @@ export function CartDrawer() {
             <div className="flex items-center gap-2">
               <Truck className="w-4 h-4 text-emerald-600" />
               {amountToFreeShipping === 0 ? (
-                <span className="text-emerald-700 font-bold">¡Tienes Envío GRATIS en Lima!</span>
+                <span className="text-emerald-700 font-bold">¡Tienes Envío GRATIS!</span>
               ) : (
-                <span>Agrega <strong className="text-emerald-700">S/ {amountToFreeShipping.toFixed(2)}</strong> para <strong>Envío Gratis</strong></span>
+                <span>Agrega <strong className="text-emerald-700">{currencySymbol} {amountToFreeShipping.toFixed(2)}</strong> para <strong>Envío Gratis</strong></span>
               )}
             </div>
             <span className="text-[10px] text-slate-500">{Math.round(progressPercent)}%</span>
@@ -98,12 +104,12 @@ export function CartDrawer() {
               <div className="space-y-1">
                 <h3 className="font-bold text-slate-900 text-base">Tu carrito está vacío</h3>
                 <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                  Agrega accesorios Apple, cargadores UGREEN o Tecno Packs para comenzar.
+                  Explora nuestro catálogo para agregar productos y completar tu pedido por WhatsApp.
                 </p>
               </div>
               <button
                 onClick={closeCart}
-                className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-6 py-3 rounded-full transition-colors shadow-sm"
+                className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-6 py-3 rounded-full transition-colors shadow-sm cursor-pointer"
               >
                 <span>Ver Catálogo</span>
                 <ArrowRight className="w-4 h-4" />
@@ -135,7 +141,7 @@ export function CartDrawer() {
                     <div className="flex items-center border border-slate-200 bg-white rounded-lg overflow-hidden shadow-2xs">
                       <button
                         onClick={() => updateQuantity(item.product.id, item.quantity - 1, item.selectedColor, item.selectedModel)}
-                        className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+                        className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
                         aria-label="Disminuir cantidad"
                       >
                         <Minus className="w-3 h-3" />
@@ -145,7 +151,7 @@ export function CartDrawer() {
                       </span>
                       <button
                         onClick={() => updateQuantity(item.product.id, item.quantity + 1, item.selectedColor, item.selectedModel)}
-                        className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+                        className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
                         aria-label="Aumentar cantidad"
                       >
                         <Plus className="w-3 h-3" />
@@ -159,7 +165,7 @@ export function CartDrawer() {
                       </span>
                       <button
                         onClick={() => removeItem(item.product.id, item.selectedColor, item.selectedModel)}
-                        className="text-slate-400 hover:text-rose-500 transition-colors"
+                        className="text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
                         title="Eliminar"
                         aria-label="Eliminar item"
                       >
@@ -179,21 +185,21 @@ export function CartDrawer() {
             <div className="space-y-1.5 text-xs">
               <div className="flex justify-between text-slate-600 font-medium">
                 <span>Subtotal</span>
-                <span>S/ {subtotal.toFixed(2)}</span>
+                <span>{currencySymbol} {subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-slate-600 font-medium">
                 <span>Envío</span>
-                <span>{shipping === 0 ? <strong className="text-emerald-700 font-bold">GRATIS</strong> : `S/ ${shipping.toFixed(2)}`}</span>
+                <span>{shipping === 0 ? <strong className="text-emerald-700 font-bold">GRATIS</strong> : `${currencySymbol} ${shipping.toFixed(2)}`}</span>
               </div>
               <div className="flex justify-between text-base font-black text-slate-950 pt-2 border-t border-slate-200">
                 <span>Total</span>
-                <span className="text-emerald-700">S/ {total.toFixed(2)}</span>
+                <span className="text-emerald-700">{currencySymbol} {total.toFixed(2)}</span>
               </div>
             </div>
 
             <button
               onClick={() => setIsCheckoutModalOpen(true)}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-full flex items-center justify-center gap-2 text-xs shadow-md shadow-emerald-600/20 transition-all touch-press"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-full flex items-center justify-center gap-2 text-xs shadow-md shadow-emerald-600/20 transition-all touch-press cursor-pointer"
             >
               <MessageCircle className="w-4 h-4" />
               <span>Pedir por WhatsApp (Atención Inmediata)</span>
@@ -201,7 +207,7 @@ export function CartDrawer() {
 
             <div className="text-[10px] text-center text-slate-500 flex items-center justify-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Garantía oficial de 6 meses en todos los productos</span>
+              <span>Garantía oficial directa en todos los productos</span>
             </div>
           </div>
         )}

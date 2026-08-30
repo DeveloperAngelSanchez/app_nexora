@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ShoppingBag, 
   ShieldCheck, 
@@ -11,8 +11,7 @@ import {
   MessageCircle, 
   Share2, 
   Check,
-  Star,
-  Zap
+  Star
 } from 'lucide-react';
 import { Product } from '@/types';
 import { useCartStore } from '@/store/cartStore';
@@ -20,6 +19,8 @@ import { useCartStore } from '@/store/cartStore';
 interface ProductDetailClientProps {
   product: Product;
 }
+
+const PLACEHOLDER_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600' viewBox='0 0 600 600'%3E%3Crect width='600' height='600' fill='%23f1f5f9'/%3E%3Cpath d='M250 270 L350 270 L350 330 L250 330 Z' fill='%23cbd5e1'/%3E%3Ctext x='50%25' y='52%25' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-family='sans-serif' font-size='16'%3ESin Imagen%3C/text%3E%3C/svg%3E";
 
 export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const [selectedImage, setSelectedImage] = useState(0);
@@ -40,21 +41,25 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const { addItem } = useCartStore();
 
   const [whatsappPhone, setWhatsappPhone] = useState('51999999999');
+  const [storeName, setStoreName] = useState('Tienda Oficial');
 
-  React.useEffect(() => {
+  useEffect(() => {
     async function loadPhone() {
       try {
         const { createSupabaseBrowserClient } = await import('@/lib/supabase-browser');
         const supabase = createSupabaseBrowserClient();
         const { data } = await supabase
           .from('site_settings')
-          .select('whatsapp_number')
+          .select('whatsapp_number, store_name')
           .eq('id', 'main')
           .maybeSingle();
 
         if (data?.whatsapp_number) {
           const clean = data.whatsapp_number.replace(/[^0-9]/g, '');
           setWhatsappPhone(clean.startsWith('51') ? clean : `51${clean}`);
+        }
+        if (data?.store_name) {
+          setStoreName(data.store_name);
         }
       } catch (e) {
         // fallback
@@ -71,7 +76,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
   const handleDirectWhatsAppBuy = () => {
     const variantDetails = [selectedModel, selectedColor].filter(Boolean).join(' - ');
-    let msg = `Hola NeXora Store, deseo adquirir el siguiente producto:\n\n`;
+    let msg = `Hola ${storeName}, deseo adquirir el siguiente producto:\n\n`;
     msg += `📦 Producto: ${product.name}\n`;
     if (variantDetails) msg += `🎨 Variante: ${variantDetails}\n`;
     msg += `🔢 Cantidad: ${quantity} unidad(es)\n`;
@@ -93,7 +98,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
   const images = product.images.length > 0 
     ? product.images 
-    : ['https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=800&q=80'];
+    : [PLACEHOLDER_IMG];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
@@ -112,13 +117,13 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
             alt={product.name}
             className="w-full h-full object-contain object-center group-hover:scale-105 transition-transform duration-500"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=800&q=80';
+              (e.target as HTMLImageElement).src = PLACEHOLDER_IMG;
             }}
           />
 
           <button
             onClick={handleShare}
-            className="absolute top-4 right-4 p-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors border border-slate-200 shadow-xs"
+            className="absolute top-4 right-4 p-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors border border-slate-200 shadow-xs cursor-pointer"
             title="Copiar enlace"
             aria-label="Copiar enlace"
           >
@@ -133,7 +138,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               <button
                 key={idx}
                 onClick={() => setSelectedImage(idx)}
-                className={`w-18 h-18 rounded-2xl p-2 bg-white border transition-all shrink-0 ${
+                className={`w-18 h-18 rounded-2xl p-2 bg-white border transition-all shrink-0 cursor-pointer ${
                   selectedImage === idx 
                     ? 'border-emerald-600 ring-2 ring-emerald-600/30' 
                     : 'border-slate-200 opacity-70 hover:opacity-100'
@@ -153,8 +158,8 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               <Truck className="w-4 h-4" />
             </div>
             <div>
-              <p className="font-bold text-slate-900">Despacho en Lima</p>
-              <p className="text-slate-500 text-[11px]">En 24h a tu puerta</p>
+              <p className="font-bold text-slate-900">Despacho Express</p>
+              <p className="text-slate-500 text-[11px]">Envíos a todo el Perú</p>
             </div>
           </div>
 
@@ -163,8 +168,8 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               <ShieldCheck className="w-4 h-4" />
             </div>
             <div>
-              <p className="font-bold text-slate-900">Garantía Nexora</p>
-              <p className="text-slate-500 text-[11px]">6 meses oficiales</p>
+              <p className="font-bold text-slate-900">Garantía Directa</p>
+              <p className="text-slate-500 text-[11px]">Calidad garantizada</p>
             </div>
           </div>
         </div>
@@ -175,9 +180,11 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         
         {/* Brand Header */}
         <div className="flex items-center justify-between gap-4">
-          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full uppercase tracking-wider">
-            {product.brand} Oficial
-          </span>
+          {product.brand ? (
+            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full uppercase tracking-wider">
+              {product.brand}
+            </span>
+          ) : <span />}
           <span className="text-xs text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
             En Stock ({product.stock} unidades)
           </span>
@@ -196,13 +203,13 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
             ))}
           </div>
           <span className="font-bold text-slate-900">{product.rating}</span>
-          <span className="text-slate-500">({product.reviewCount} clientes verificados)</span>
+          <span className="text-slate-500">({product.reviewCount} valoraciones)</span>
         </div>
 
         {/* Pricing Box */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-xs">
           <div>
-            <span className="text-xs text-slate-500 block mb-0.5 font-medium">Precio de Oferta:</span>
+            <span className="text-xs text-slate-500 block mb-0.5 font-medium">Precio:</span>
             <div className="flex items-baseline gap-3">
               <span className="text-3xl font-black text-slate-950">
                 {product.symbol} {product.price.toFixed(2)}
@@ -233,7 +240,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                 <button
                   key={option}
                   onClick={() => setSelectedModel(option)}
-                  className={`p-2.5 rounded-xl border text-xs font-bold transition-all touch-press ${
+                  className={`p-2.5 rounded-xl border text-xs font-bold transition-all touch-press cursor-pointer ${
                     selectedModel === option
                       ? 'border-emerald-600 bg-emerald-50 text-emerald-800 shadow-2xs'
                       : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
@@ -257,7 +264,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                 <button
                   key={color}
                   onClick={() => setSelectedColor(color)}
-                  className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition-all touch-press ${
+                  className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition-all touch-press cursor-pointer ${
                     selectedColor === color
                       ? 'border-emerald-600 bg-emerald-50 text-emerald-800 shadow-2xs'
                       : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
@@ -278,7 +285,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
             <div className="flex items-center border border-slate-200 bg-white rounded-2xl overflow-hidden p-1 shadow-2xs">
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
+                className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
                 aria-label="Disminuir cantidad"
               >
                 <Minus className="w-3.5 h-3.5" />
@@ -288,7 +295,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               </span>
               <button
                 onClick={() => setQuantity(quantity + 1)}
-                className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
+                className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
                 aria-label="Aumentar cantidad"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -298,7 +305,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
             {/* Add to Cart */}
             <button
               onClick={handleAddToCart}
-              className={`flex-1 font-bold py-3.5 px-6 rounded-full flex items-center justify-center gap-2 transition-all touch-press text-xs shadow-md ${
+              className={`flex-1 font-bold py-3.5 px-6 rounded-full flex items-center justify-center gap-2 transition-all touch-press text-xs shadow-md cursor-pointer ${
                 isAdded
                   ? 'bg-emerald-700 text-white'
                   : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
@@ -321,7 +328,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           {/* Instant Buy via WhatsApp */}
           <button
             onClick={handleDirectWhatsAppBuy}
-            className="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold py-3.5 px-6 rounded-full flex items-center justify-center gap-2 text-xs transition-all touch-press shadow-2xs"
+            className="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold py-3.5 px-6 rounded-full flex items-center justify-center gap-2 text-xs transition-all touch-press shadow-2xs cursor-pointer"
           >
             <MessageCircle className="w-4 h-4 text-emerald-600" />
             <span>Comprar Directo por WhatsApp</span>
@@ -329,27 +336,31 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         </div>
 
         {/* Features Bullet List */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3 shadow-2xs">
-          <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-            Características Principales
-          </h2>
-          <ul className="space-y-2 text-xs text-slate-600">
-            {product.features?.map((f, i) => (
-              <li key={i} className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span>{f}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        {product.features && product.features.length > 0 && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3 shadow-2xs">
+            <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Características Principales
+            </h2>
+            <ul className="space-y-2 text-xs text-slate-600">
+              {product.features.map((f, i) => (
+                <li key={i} className="flex items-start gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span>{f}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Description */}
-        <div className="space-y-2 text-xs text-slate-600 leading-relaxed pt-2">
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-            Descripción
-          </h3>
-          <p>{product.description}</p>
-        </div>
+        {product.description && (
+          <div className="space-y-2 text-xs text-slate-600 leading-relaxed pt-2">
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Descripción
+            </h3>
+            <p>{product.description}</p>
+          </div>
+        )}
 
       </div>
 

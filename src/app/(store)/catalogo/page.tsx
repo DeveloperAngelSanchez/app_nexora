@@ -4,8 +4,8 @@ import { getAllProducts, getCategories, getBrands } from '@/lib/catalog';
 import { CatalogClient } from './CatalogClient';
 
 export const metadata: Metadata = {
-  title: 'Catálogo de Productos | Nexora Store Perú',
-  description: 'Explora nuestro catálogo completo de accesorios Apple, cargadores GaN UGREEN, cases de protección militar, smartwatches y tecno packs con envío a todo el Perú.',
+  title: 'Catálogo de Productos | Tienda Oficial Perú',
+  description: 'Explora nuestro catálogo completo de productos con envíos express y garantía oficial directa a todo el Perú.',
 };
 
 export const revalidate = 60; // ISR 60 seconds

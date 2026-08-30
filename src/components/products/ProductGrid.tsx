@@ -23,14 +23,14 @@ export function ProductGrid({ initialProducts }: ProductGridProps) {
           <div className="space-y-1">
             <h2 className="text-xl font-bold text-slate-900">Catálogo en Preparación</h2>
             <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-              Estamos actualizando el inventario con nuevos artículos y precios especiales. Visita el catálogo o consulta directamente por WhatsApp.
+              Estamos actualizando el inventario con nuevos artículos y promociones especiales. Consulta disponibilidad por WhatsApp o visita nuevamente en breve.
             </p>
           </div>
           <Link
-            href="/nxd-92f/productos/nuevo"
-            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-full text-xs transition-all shadow-sm"
+            href="/catalogo"
+            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-full text-xs transition-all shadow-sm cursor-pointer"
           >
-            <span>+ Agregar Primer Producto</span>
+            <span>Ver Catálogo General</span>
           </Link>
         </div>
       </section>
@@ -59,7 +59,7 @@ export function ProductGrid({ initialProducts }: ProductGridProps) {
               <span>Catálogo Destacado</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Los Más Vendidos de la Semana
+              Productos Destacados
             </h2>
           </div>
 
@@ -68,7 +68,7 @@ export function ProductGrid({ initialProducts }: ProductGridProps) {
             <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
               <button
                 onClick={() => setSelectedTab('all')}
-                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all touch-press ${
+                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all touch-press cursor-pointer ${
                   selectedTab === 'all'
                     ? 'bg-emerald-600 text-white shadow-xs'
                     : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300'
@@ -80,7 +80,7 @@ export function ProductGrid({ initialProducts }: ProductGridProps) {
                 <button
                   key={catName}
                   onClick={() => setSelectedTab(catName)}
-                  className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all touch-press ${
+                  className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all touch-press cursor-pointer ${
                     selectedTab === catName
                       ? 'bg-emerald-600 text-white shadow-xs'
                       : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300'
@@ -104,7 +104,7 @@ export function ProductGrid({ initialProducts }: ProductGridProps) {
         <div className="mt-12 text-center">
           <Link
             href="/catalogo"
-            className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-900 font-bold px-8 py-3.5 rounded-full text-xs transition-all touch-press shadow-xs hover:border-emerald-500"
+            className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-900 font-bold px-8 py-3.5 rounded-full text-xs transition-all touch-press shadow-xs hover:border-emerald-500 cursor-pointer"
           >
             <span>Ver los {initialProducts.length} productos en el Catálogo Completo</span>
             <ArrowRight className="w-3.5 h-3.5 text-emerald-600" />
