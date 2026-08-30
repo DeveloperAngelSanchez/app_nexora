@@ -17,10 +17,15 @@ import {
   Camera,
   ScanLine
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { ImageUploader } from './ImageUploader';
 import { createProduct, updateProduct } from '@/lib/admin/products';
-import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { useRemoteScanHost } from '@/lib/admin/useRemoteScanSession';
+
+const BarcodeScannerModal = dynamic(
+  () => import('./BarcodeScannerModal').then((mod) => mod.BarcodeScannerModal),
+  { ssr: false }
+);
 
 interface CategoryOption {
   id: string;

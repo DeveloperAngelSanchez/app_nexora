@@ -20,9 +20,14 @@ import {
   Monitor,
   Copy
 } from 'lucide-react';
-import { BarcodeScanner } from './BarcodeScanner';
+import dynamic from 'next/dynamic';
 import { useRemoteScanHost, ScannedBarcodePayload } from '@/lib/admin/useRemoteScanSession';
 import { findProductByBarcode } from '@/lib/admin/products';
+
+const BarcodeScanner = dynamic(
+  () => import('./BarcodeScanner').then((mod) => mod.BarcodeScanner),
+  { ssr: false }
+);
 
 interface BarcodeScannerModalProps {
   isOpen: boolean;

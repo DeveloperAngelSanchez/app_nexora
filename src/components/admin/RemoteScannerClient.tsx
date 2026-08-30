@@ -17,8 +17,13 @@ import {
   Zap,
   Plus
 } from 'lucide-react';
-import { BarcodeScanner } from './BarcodeScanner';
+import dynamic from 'next/dynamic';
 import { useRemoteScanClient } from '@/lib/admin/useRemoteScanSession';
+
+const BarcodeScanner = dynamic(
+  () => import('./BarcodeScanner').then((mod) => mod.BarcodeScanner),
+  { ssr: false }
+);
 
 export function RemoteScannerClient() {
   const searchParams = useSearchParams();

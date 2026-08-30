@@ -20,8 +20,13 @@ import {
   QrCode,
   ScanLine
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { toggleProductActive, deleteProduct } from '@/lib/admin/products';
-import { BarcodeScannerModal } from '@/components/admin/BarcodeScannerModal';
+
+const BarcodeScannerModal = dynamic(
+  () => import('@/components/admin/BarcodeScannerModal').then((mod) => mod.BarcodeScannerModal),
+  { ssr: false }
+);
 
 interface ProductItem {
   id: string;
