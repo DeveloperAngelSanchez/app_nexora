@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { prepareZXingModule, readBarcodesFromImageData } from 'zxing-wasm/reader';
 import { 
   Camera, 
   FlipHorizontal, 
@@ -11,7 +11,6 @@ import {
   AlertCircle, 
   RefreshCw,
   Barcode as BarcodeIcon,
-  Maximize2
 } from 'lucide-react';
 
 interface BarcodeScannerProps {
@@ -33,7 +32,7 @@ function playSuccessBeep() {
     osc.frequency.setValueAtTime(1400, ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(1900, ctx.currentTime + 0.08);
 
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.setValueAtTime(0.35, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
 
     osc.connect(gain);
@@ -56,13 +55,37 @@ function triggerHaptic() {
   }
 }
 
+let wasmModuleInitialized = false;
+async function initZXingWasm() {
+  if (wasmModuleInitialized) return;
+  try {
+    await prepareZXingModule({
+      overrides: {
+        locateFile: (path: string, prefix: string) => {
+          if (path.endsWith('.wasm')) {
+            return '/wasm/' + path;
+          }
+          return prefix + path;
+        },
+      },
+    });
+    wasmModuleInitialized = true;
+  } catch (err) {
+    console.warn('Local WASM init fallback to CDN:', err);
+    // zxing-wasm will fall back to its internal CDN
+  }
+}
+
 export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScannerProps) {
-  const scannerContainerId = useRef(`qr-reader-${Math.random().toString(36).substring(2, 9)}`);
-  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const animationFrameId = useRef<number | null>(null);
   const scanCooldownRef = useRef<boolean>(false);
+  const isDecodingRef = useRef<boolean>(false);
 
   const [isScanning, setIsScanning] = useState(false);
-  const [cameras, setCameras] = useState<{ id: string; label: string }[]>([]);
+  const [cameras, setCameras] = useState<{ deviceId: string; label: string }[]>([]);
   const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
   const [torchOn, setTorchOn] = useState(false);
   const [hasTorch, setHasTorch] = useState(false);
@@ -70,19 +93,30 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
   const [lastScanned, setLastScanned] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(true);
 
-  // Stop scanner safely
-  const stopScanner = useCallback(async () => {
-    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-      try {
-        await html5QrCodeRef.current.stop();
-      } catch (err) {
-        console.warn('Failed to stop scanner:', err);
-      }
+  // Stop camera media stream safely
+  const stopCamera = useCallback(() => {
+    if (animationFrameId.current) {
+      cancelAnimationFrame(animationFrameId.current);
+      animationFrameId.current = null;
     }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          // Ignore
+        }
+      });
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsScanning(false);
   }, []);
 
   // Handle successful scan
-  const handleScanSuccess = useCallback((decodedText: string, result: any) => {
+  const handleScanSuccess = useCallback((decodedText: string, formatName: string) => {
     if (paused || scanCooldownRef.current) return;
 
     const trimmed = decodedText.trim();
@@ -98,82 +132,171 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
     playSuccessBeep();
     triggerHaptic();
 
-    const formatName = result?.result?.format?.formatName || 'BARCODE';
     onScan(trimmed, formatName);
   }, [onScan, paused]);
 
-  // Start scanner
-  const startScanner = useCallback(async (cameraIdOrConfig: string | { facingMode: string | { ideal: string } }) => {
-    setIsStarting(true);
-    setErrorMessage(null);
+  // Frame processing loop using WebAssembly ZXing engine
+  const startDecodeLoop = useCallback(() => {
+    let lastScanTime = 0;
+    const SCAN_INTERVAL_MS = 75; // ~13 FPS processing rate (optimal for WASM without overheating mobile)
 
-    try {
-      await stopScanner();
-
-      if (!html5QrCodeRef.current) {
-        html5QrCodeRef.current = new Html5Qrcode(scannerContainerId.current, {
-          formatsToSupport: [
-            Html5QrcodeSupportedFormats.EAN_13,
-            Html5QrcodeSupportedFormats.EAN_8,
-            Html5QrcodeSupportedFormats.UPC_A,
-            Html5QrcodeSupportedFormats.UPC_E,
-            Html5QrcodeSupportedFormats.CODE_128,
-            Html5QrcodeSupportedFormats.CODE_39,
-            Html5QrcodeSupportedFormats.CODE_93,
-            Html5QrcodeSupportedFormats.ITF,
-            Html5QrcodeSupportedFormats.QR_CODE,
-          ],
-          verbose: false,
-          // CRITICAL: disable native BarcodeDetector on iOS/Safari because WebKit's BarcodeDetector only supports QR codes and ignores EAN-13!
-          experimentalFeatures: {
-            useBarCodeDetectorIfSupported: false,
-          }
-        });
+    const tick = async (timestamp: number) => {
+      if (!videoRef.current || !canvasRef.current) {
+        animationFrameId.current = requestAnimationFrame(tick);
+        return;
       }
 
-      const qrCodeSuccessCallback = (decodedText: string, decodedResult: any) => {
-        handleScanSuccess(decodedText, decodedResult);
-      };
+      const video = videoRef.current;
+      if (
+        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+        video.videoWidth > 0 &&
+        video.videoHeight > 0 &&
+        !video.paused &&
+        !scanCooldownRef.current &&
+        !isDecodingRef.current &&
+        timestamp - lastScanTime >= SCAN_INTERVAL_MS
+      ) {
+        lastScanTime = timestamp;
+        isDecodingRef.current = true;
 
-      const qrCodeErrorCallback = () => {
-        // Continuous frame errors are normal while searching
-      };
+        try {
+          const canvas = canvasRef.current;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-      // iOS Safari and mobile optimized configuration:
-      // We do NOT pass a restrictive qrbox so ZXing processes the full uncropped frame without WebKit pixel ratio scaling bugs
-      const config: any = {
-        fps: 25,
-        videoConstraints: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280, min: 640 },
-          height: { ideal: 720, min: 480 },
+          if (ctx) {
+            // Keep resolution balanced for ultra-fast C++ WASM decoding
+            const maxDimension = 1080;
+            let targetWidth = video.videoWidth;
+            let targetHeight = video.videoHeight;
+
+            if (targetWidth > maxDimension || targetHeight > maxDimension) {
+              if (targetWidth > targetHeight) {
+                targetHeight = Math.round((targetHeight * maxDimension) / targetWidth);
+                targetWidth = maxDimension;
+              } else {
+                targetWidth = Math.round((targetWidth * maxDimension) / targetHeight);
+                targetHeight = maxDimension;
+              }
+            }
+
+            if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+              canvas.width = targetWidth;
+              canvas.height = targetHeight;
+            }
+
+            ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
+            const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+
+            // Execute WASM barcode reader with full rotational & adaptive contrast search
+            const results = await readBarcodesFromImageData(imageData, {
+              formats: [
+                'EAN13',
+                'EAN8',
+                'UPCA',
+                'UPCE',
+                'Code128',
+                'Code39',
+                'Code93',
+                'ITF',
+                'QRCode',
+                'DataMatrix',
+              ],
+              tryHarder: true,
+              tryRotate: true,
+              tryInvert: true,
+              tryDownscale: true,
+              binarizer: 'LocalAverage',
+            });
+
+            if (results && results.length > 0) {
+              const detected = results[0];
+              if (detected.text) {
+                handleScanSuccess(detected.text, detected.format || 'BARCODE');
+              }
+            }
+          }
+        } catch (err) {
+          // Frame read errors during motion or blur are normal and ignored
+        } finally {
+          isDecodingRef.current = false;
         }
+      }
+
+      animationFrameId.current = requestAnimationFrame(tick);
+    };
+
+    animationFrameId.current = requestAnimationFrame(tick);
+  }, [handleScanSuccess]);
+
+  // Start Camera Stream
+  const startCamera = useCallback(async (deviceId?: string) => {
+    setIsStarting(true);
+    setErrorMessage(null);
+    stopCamera();
+
+    try {
+      await initZXingWasm();
+
+      const constraints: MediaStreamConstraints = {
+        audio: false,
+        video: deviceId
+          ? {
+              deviceId: { exact: deviceId },
+              width: { ideal: 1280, min: 640 },
+              height: { ideal: 720, min: 480 },
+            }
+          : {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1280, min: 640 },
+              height: { ideal: 720, min: 480 },
+            },
       };
 
-      await html5QrCodeRef.current.start(
-        cameraIdOrConfig,
-        config,
-        qrCodeSuccessCallback,
-        qrCodeErrorCallback
-      );
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
 
       setIsScanning(true);
 
-      // Check if torch/flashlight is supported
+      // Check for torch capability
       try {
-        const capabilities = html5QrCodeRef.current.getRunningTrackCapabilities();
-        if ((capabilities as any)?.torch) {
+        const videoTrack = stream.getVideoTracks()[0];
+        const capabilities: any = videoTrack?.getCapabilities ? videoTrack.getCapabilities() : {};
+        if (capabilities.torch) {
           setHasTorch(true);
+        } else {
+          setHasTorch(false);
         }
       } catch {
         setHasTorch(false);
       }
+
+      // Populate available camera list
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices
+          .filter((d) => d.kind === 'videoinput')
+          .map((d, index) => ({
+            deviceId: d.deviceId,
+            label: d.label || `Cámara ${index + 1}`,
+          }));
+        setCameras(videoDevices);
+      } catch {
+        // Ignore enumerate error
+      }
+
+      // Start decoding loop
+      startDecodeLoop();
     } catch (err: any) {
-      console.error('Error starting barcode scanner:', err);
+      console.error('Error opening camera:', err);
       const msg = err?.message || '';
-      if (msg.includes('Permission') || msg.includes('NotAllowedError')) {
+      if (msg.includes('Permission') || msg.includes('NotAllowedError') || err.name === 'NotAllowedError') {
         setErrorMessage('Permiso de cámara denegado. Por favor, permite el acceso a la cámara en los ajustes de Safari/Chrome.');
-      } else if (msg.includes('NotFound') || msg.includes('DevicesNotFoundError')) {
+      } else if (msg.includes('NotFound') || msg.includes('DevicesNotFoundError') || err.name === 'NotFoundError') {
         setErrorMessage('No se encontró ninguna cámara disponible en este dispositivo.');
       } else {
         setErrorMessage('No se pudo acceder a la cámara. Verifica los permisos del navegador.');
@@ -181,64 +304,29 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
     } finally {
       setIsStarting(false);
     }
-  }, [stopScanner, handleScanSuccess]);
+  }, [stopCamera, startDecodeLoop]);
 
-  // Initial mount: list cameras & start with environment back camera
+  // Initial mount
   useEffect(() => {
-    let mounted = true;
-
-    async function init() {
-      try {
-        const devices = await Html5Qrcode.getCameras();
-        if (mounted && devices && devices.length > 0) {
-          setCameras(devices);
-          // Prefer back/rear camera on smartphones (iPhone main back camera)
-          const backCamIndex = devices.findIndex((d) => 
-            d.label.toLowerCase().includes('back') || 
-            d.label.toLowerCase().includes('rear') || 
-            d.label.toLowerCase().includes('trasera') ||
-            d.label.toLowerCase().includes('environment') ||
-            d.label.toLowerCase().includes('0, facing back')
-          );
-          const chosenIndex = backCamIndex >= 0 ? backCamIndex : 0;
-          setCurrentCameraIndex(chosenIndex);
-          await startScanner(devices[chosenIndex].id);
-        } else if (mounted) {
-          // Fallback to generic environment camera
-          await startScanner({ facingMode: { ideal: 'environment' } });
-        }
-      } catch {
-        if (mounted) {
-          await startScanner({ facingMode: { ideal: 'environment' } });
-        }
-      }
-    }
-
-    init();
+    startCamera();
 
     return () => {
-      mounted = false;
-      if (html5QrCodeRef.current) {
-        stopScanner().then(() => {
-          try {
-            html5QrCodeRef.current?.clear();
-          } catch {
-            // Ignore
-          }
-        });
-      }
+      stopCamera();
     };
-  }, [startScanner, stopScanner]);
+  }, [startCamera, stopCamera]);
 
-  // Toggle Torch/Flash
+  // Toggle Torch/Flashlight
   const toggleTorch = async () => {
-    if (!html5QrCodeRef.current) return;
+    if (!streamRef.current) return;
     try {
-      const nextTorch = !torchOn;
-      await html5QrCodeRef.current.applyVideoConstraints({
-        advanced: [{ torch: nextTorch } as any],
-      });
-      setTorchOn(nextTorch);
+      const videoTrack = streamRef.current.getVideoTracks()[0];
+      if (videoTrack) {
+        const nextTorch = !torchOn;
+        await (videoTrack as any).applyConstraints({
+          advanced: [{ torch: nextTorch }],
+        });
+        setTorchOn(nextTorch);
+      }
     } catch (err) {
       console.warn('Torch toggle failed:', err);
     }
@@ -249,7 +337,7 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
     if (cameras.length <= 1) return;
     const nextIndex = (currentCameraIndex + 1) % cameras.length;
     setCurrentCameraIndex(nextIndex);
-    await startScanner(cameras[nextIndex].id);
+    await startCamera(cameras[nextIndex].deviceId);
   };
 
   return (
@@ -260,7 +348,7 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
         <div className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-xs font-bold tracking-wider text-white uppercase drop-shadow-md">
-            Escáner HD Activo
+            Escáner HD Activo (WASM)
           </span>
         </div>
 
@@ -295,7 +383,7 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
             <button
               type="button"
               onClick={() => {
-                stopScanner();
+                stopCamera();
                 onClose();
               }}
               className="p-2.5 rounded-full bg-white/10 text-white hover:bg-rose-600 backdrop-blur-md transition-all cursor-pointer"
@@ -310,11 +398,17 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
       {/* Video Viewport Container */}
       <div className="relative w-full h-[320px] sm:h-[360px] bg-slate-950 flex items-center justify-center overflow-hidden">
         
-        {/* html5-qrcode mounts here */}
-        <div 
-          id={scannerContainerId.current} 
-          className="w-full h-full [&>video]:w-full [&>video]:h-full [&>video]:object-cover"
+        {/* Direct HTML5 Video Stream */}
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          autoPlay
+          className="w-full h-full object-cover"
         />
+
+        {/* Hidden Processing Canvas for WASM frame extraction */}
+        <canvas ref={canvasRef} className="hidden" />
 
         {/* Viewfinder Target Graphic Overlay */}
         {isScanning && !errorMessage && (
@@ -336,10 +430,7 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
             <div className="mt-4 flex flex-col items-center gap-1">
               <p className="text-[11px] font-bold text-white/95 bg-black/70 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15 tracking-wide shadow-md flex items-center gap-1.5">
                 <BarcodeIcon className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Apunta al código a unos 15–20 cm</span>
-              </p>
-              <p className="text-[10px] text-slate-300 font-medium bg-black/50 px-2 py-0.5 rounded">
-                Gira el celular si el código está vertical
+                <span>Apunta al código (Detección en 360°)</span>
               </p>
             </div>
           </div>
@@ -349,7 +440,7 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
         {isStarting && !errorMessage && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-xs gap-3 z-10">
             <RefreshCw className="w-8 h-8 text-emerald-400 animate-spin" />
-            <p className="text-xs font-semibold text-slate-300">Iniciando cámara HD...</p>
+            <p className="text-xs font-semibold text-slate-300">Iniciando motor WASM HD...</p>
           </div>
         )}
 
@@ -365,7 +456,7 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
             </div>
             <button
               type="button"
-              onClick={() => startScanner({ facingMode: { ideal: 'environment' } })}
+              onClick={() => startCamera()}
               className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer"
             >
               <RefreshCw className="w-4 h-4" />
@@ -379,7 +470,7 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
       <div className="p-4 bg-slate-900/90 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
         <div className="flex items-center gap-2">
           <Camera className="w-4 h-4 text-emerald-400" />
-          <span>EAN-13, UPC, Code 128, QR</span>
+          <span>EAN-13, UPC, Code 128, QR (WASM)</span>
         </div>
         {lastScanned && (
           <span className="font-mono text-emerald-400 font-bold bg-emerald-950/80 px-2.5 py-1 rounded-lg border border-emerald-800/80 text-xs shadow-inner">
@@ -389,9 +480,6 @@ export function BarcodeScanner({ onScan, onClose, paused = false }: BarcodeScann
       </div>
 
       <style jsx global>{`
-        #qr-shaded-region {
-          display: none !important;
-        }
         @keyframes scan {
           0%, 100% {
             top: 8%;
