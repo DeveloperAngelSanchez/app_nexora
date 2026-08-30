@@ -131,15 +131,36 @@ export function WhatsAppCheckoutModal({ isOpen, onClose }: WhatsAppCheckoutModal
       // Reliable navigation
       window.location.href = whatsappUrl;
     } catch (err) {
-      console.warn('Error saving order, launching WhatsApp anyway:', err);
+      console.warn('Error saving order, launching WhatsApp directly:', err);
+      let fallbackMsg = `*SOLICITUD DE PEDIDO (NeXora Store)*\n`;
+      fallbackMsg += `👤 Nombre: ${formData.fullName.trim()}\n`;
+      fallbackMsg += `📱 Teléfono: ${cleanPhone}\n`;
+      fallbackMsg += `📍 Destino: ${formData.city} - ${formData.district.trim()}\n`;
+      fallbackMsg += `🏠 Dirección: ${formData.address.trim()}\n`;
+      fallbackMsg += `💳 Método de Pago: ${formData.paymentMethod}\n\n`;
+      fallbackMsg += `*PRODUCTOS:*\n`;
+      items.forEach((item, index) => {
+        fallbackMsg += `${index + 1}. ${item.product.name} (Cant: ${item.quantity})\n`;
+      });
+      fallbackMsg += `\nTotal estimado: S/ ${total.toFixed(2)}`;
+
+      const fallbackUrl = `https://wa.me/51999999999?text=${encodeURIComponent(fallbackMsg)}`;
+      clearCart();
       setIsSubmitting(false);
       onClose();
+      window.location.href = fallbackUrl;
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity">
-      <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+    <div 
+      onClick={onClose}
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white border border-slate-200 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+      >
         
         {/* Modal Header */}
         <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">

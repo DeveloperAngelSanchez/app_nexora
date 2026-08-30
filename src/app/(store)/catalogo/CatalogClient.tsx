@@ -40,25 +40,27 @@ export function CatalogClient({ initialProducts, categories, brands }: CatalogCl
     let result = [...initialProducts];
 
     if (selectedCategory && selectedCategory !== 'all') {
+      const catLower = selectedCategory.toLowerCase();
       result = result.filter(p => 
-        p.categoryId.toLowerCase() === selectedCategory.toLowerCase() ||
-        p.categoryName.toLowerCase().includes(selectedCategory.toLowerCase())
+        (p.categoryId && p.categoryId.toLowerCase() === catLower) ||
+        (p.categoryName && p.categoryName.toLowerCase().includes(catLower))
       );
     }
 
     if (selectedBrand && selectedBrand !== 'all') {
+      const brandLower = selectedBrand.toLowerCase();
       result = result.filter(p => 
-        p.brand.toLowerCase() === selectedBrand.toLowerCase()
+        p.brand && p.brand.toLowerCase() === brandLower
       );
     }
 
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase().trim();
       result = result.filter(p => 
-        p.name.toLowerCase().includes(q) ||
-        p.brand.toLowerCase().includes(q) ||
-        p.categoryName.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q)
+        (p.name && p.name.toLowerCase().includes(q)) ||
+        (p.brand && p.brand.toLowerCase().includes(q)) ||
+        (p.categoryName && p.categoryName.toLowerCase().includes(q)) ||
+        (p.description && p.description.toLowerCase().includes(q))
       );
     }
 

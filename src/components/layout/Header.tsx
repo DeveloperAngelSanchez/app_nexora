@@ -290,8 +290,14 @@ export function Header({ settings, categories = [] }: HeaderProps) {
 
       {/* Mobile Drawer Menu */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs md:hidden flex flex-col justify-end">
-          <div className="bg-white rounded-t-3xl p-6 space-y-6 animate-in slide-in-from-bottom duration-200 shadow-2xl border-t border-slate-200 max-h-[85vh] overflow-y-auto">
+        <div 
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs md:hidden flex flex-col justify-end"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-t-3xl p-6 space-y-6 animate-in slide-in-from-bottom duration-200 shadow-2xl border-t border-slate-200 max-h-[85vh] overflow-y-auto"
+          >
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <Logo variant="dark" />
               <button

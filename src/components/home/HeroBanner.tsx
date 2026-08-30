@@ -90,11 +90,13 @@ function HeroFeaturedShowcase({
     );
   }
 
-  const currentProduct = products[currentIndex];
+  const currentProduct = products[currentIndex] || products[0];
+  if (!currentProduct) return null;
+
   const imageSrc = currentProduct.images && currentProduct.images.length > 0
     ? currentProduct.images[0]
     : PLACEHOLDER_IMG;
-  const hasDiscount = currentProduct.regularPrice > currentProduct.price;
+  const hasDiscount = (currentProduct.regularPrice || 0) > (currentProduct.price || 0);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
