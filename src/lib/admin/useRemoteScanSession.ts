@@ -17,6 +17,32 @@ export function generateSessionCode(): string {
   return `${prefix}-${numbers}`;
 }
 
+// Crisp host receiver beep
+function playHostReceivedBeep() {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(800, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1600, ctx.currentTime + 0.08);
+
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.13);
+  } catch {
+    // Ignore audio autoplay limitations
+  }
+}
+
 /**
  * Host Hook (Desktop): Creates session, listens for incoming scans from paired mobile
  */
@@ -24,8 +50,13 @@ export function useRemoteScanHost(onBarcodeReceived?: (data: ScannedBarcodePaylo
   const [sessionCode, setSessionCode] = useState<string>('');
   const [isMobileConnected, setIsMobileConnected] = useState(false);
   const [recentScans, setRecentScans] = useState<ScannedBarcodePayload[]>([]);
-  const supabase = createSupabaseBrowserClient();
   const channelRef = useRef<any>(null);
+  
+  // Keep callback reference updated without triggering channel recreation
+  const onBarcodeReceivedRef = useRef(onBarcodeReceived);
+  useEffect(() => {
+    onBarcodeReceivedRef.current = onBarcodeReceived;
+  }, [onBarcodeReceived]);
 
   const startSession = useCallback(() => {
     const code = generateSessionCode();
@@ -36,10 +67,17 @@ export function useRemoteScanHost(onBarcodeReceived?: (data: ScannedBarcodePaylo
   useEffect(() => {
     if (!sessionCode) return;
 
-    const channelName = `remote_scan_${sessionCode.toLowerCase()}`;
+    const supabase = createSupabaseBrowserClient();
+    const cleanCode = sessionCode.trim().toUpperCase();
+    const channelName = `remote_scan_${cleanCode.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+    }
+
     const channel = supabase.channel(channelName, {
       config: {
-        broadcast: { ack: true, self: false },
+        broadcast: { ack: true, self: true },
         presence: { key: 'host' },
       },
     });
@@ -47,21 +85,23 @@ export function useRemoteScanHost(onBarcodeReceived?: (data: ScannedBarcodePaylo
     channel
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState();
-        const clients = Object.keys(state);
-        // Check if a scanner/mobile client is present
         const hasMobile = Object.values(state).some((presences: any) =>
           presences.some((p: any) => p.role === 'scanner')
         );
         setIsMobileConnected(hasMobile);
       })
-      .on('broadcast', { event: 'barcode_scanned' }, ({ payload }) => {
-        const scanData: ScannedBarcodePayload = payload;
-        setRecentScans((prev) => [scanData, ...prev.slice(0, 19)]);
-        if (onBarcodeReceived) {
-          onBarcodeReceived(scanData);
+      .on('broadcast', { event: 'barcode_scanned' }, (e: { payload: any }) => {
+        if (!e.payload || !e.payload.barcode) return;
+        const scanData: ScannedBarcodePayload = e.payload;
+        
+        playHostReceivedBeep();
+        setRecentScans((prev) => [scanData, ...prev.filter(s => s.barcode !== scanData.barcode).slice(0, 19)]);
+        
+        if (onBarcodeReceivedRef.current) {
+          onBarcodeReceivedRef.current(scanData);
         }
       })
-      .subscribe(async (status) => {
+      .subscribe(async (status: string) => {
         if (status === 'SUBSCRIBED') {
           await channel.track({ role: 'host', joinedAt: Date.now() });
         }
@@ -72,9 +112,10 @@ export function useRemoteScanHost(onBarcodeReceived?: (data: ScannedBarcodePaylo
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
       }
     };
-  }, [sessionCode, onBarcodeReceived, supabase]);
+  }, [sessionCode]);
 
   return {
     sessionCode,
@@ -93,7 +134,6 @@ export function useRemoteScanClient(initialCode?: string) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scansSent, setScansSent] = useState<ScannedBarcodePayload[]>([]);
-  const supabase = createSupabaseBrowserClient();
   const channelRef = useRef<any>(null);
 
   const connectToSession = useCallback(async (code: string) => {
@@ -107,14 +147,16 @@ export function useRemoteScanClient(initialCode?: string) {
     setError(null);
 
     try {
+      const supabase = createSupabaseBrowserClient();
+
       if (channelRef.current) {
         await supabase.removeChannel(channelRef.current);
       }
 
-      const channelName = `remote_scan_${formatted.toLowerCase()}`;
+      const channelName = `remote_scan_${formatted.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
       const channel = supabase.channel(channelName, {
         config: {
-          broadcast: { ack: true, self: false },
+          broadcast: { ack: true, self: true },
           presence: { key: 'scanner' },
         },
       });
@@ -127,7 +169,7 @@ export function useRemoteScanClient(initialCode?: string) {
           );
           setIsConnected(hasHost || true);
         })
-        .subscribe(async (status) => {
+        .subscribe(async (status: string) => {
           if (status === 'SUBSCRIBED') {
             await channel.track({ role: 'scanner', joinedAt: Date.now() });
             setIsConnected(true);
@@ -145,7 +187,7 @@ export function useRemoteScanClient(initialCode?: string) {
       setError(err?.message || 'Error al conectar con la sesión.');
       setIsConnecting(false);
     }
-  }, [supabase]);
+  }, []);
 
   const sendBarcode = useCallback(async (barcode: string, format?: string) => {
     if (!channelRef.current || !barcode) return false;
@@ -173,12 +215,13 @@ export function useRemoteScanClient(initialCode?: string) {
 
   const disconnect = useCallback(() => {
     if (channelRef.current) {
+      const supabase = createSupabaseBrowserClient();
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
     setIsConnected(false);
     setSessionCode('');
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     if (initialCode) {
@@ -186,10 +229,12 @@ export function useRemoteScanClient(initialCode?: string) {
     }
     return () => {
       if (channelRef.current) {
+        const supabase = createSupabaseBrowserClient();
         supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
       }
     };
-  }, [initialCode, connectToSession, supabase]);
+  }, [initialCode, connectToSession]);
 
   return {
     sessionCode,

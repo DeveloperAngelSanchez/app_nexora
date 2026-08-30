@@ -17,7 +17,7 @@ interface CategoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialData?: CategoryItem | null;
-  onSuccess: () => void;
+  onSuccess: (savedCategory: CategoryItem, isEdit: boolean) => void;
 }
 
 export function CategoryModal({ isOpen, onClose, initialData, onSuccess }: CategoryModalProps) {
@@ -80,13 +80,19 @@ export function CategoryModal({ isOpen, onClose, initialData, onSuccess }: Categ
     };
 
     try {
+      let res;
       if (isEditing && initialData?.id) {
-        await updateCategory(initialData.id, payload);
+        res = await updateCategory(initialData.id, payload);
       } else {
-        await createCategory(payload);
+        res = await createCategory(payload);
       }
-      onSuccess();
-      onClose();
+
+      if (res.success && res.data) {
+        onSuccess(res.data, isEditing);
+        onClose();
+      } else {
+        setErrorMsg(res.error || 'Error al guardar categoría.');
+      }
     } catch (err: any) {
       setErrorMsg(err?.message || 'Error al guardar categoría.');
     } finally {

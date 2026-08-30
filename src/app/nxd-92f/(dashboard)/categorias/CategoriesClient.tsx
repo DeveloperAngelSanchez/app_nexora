@@ -28,6 +28,11 @@ export function CategoriesClient({ initialCategories }: CategoriesClientProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Sync state if server component re-renders
+  React.useEffect(() => {
+    setCategories(initialCategories);
+  }, [initialCategories]);
+
   const filtered = categories.filter((c) =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -43,17 +48,38 @@ export function CategoriesClient({ initialCategories }: CategoriesClientProps) {
     setIsModalOpen(true);
   };
 
+  // Instant optimistic update on create and edit
+  const handleSaveSuccess = (saved: CategoryItem, isEdit: boolean) => {
+    setCategories((prev) => {
+      let updatedList: CategoryItem[];
+      if (isEdit) {
+        updatedList = prev.map((c) => (c.id === saved.id ? { ...c, ...saved } : c));
+      } else {
+        updatedList = [...prev.filter((c) => c.id !== saved.id), saved];
+      }
+      return updatedList.sort(
+        (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name)
+      );
+    });
+    router.refresh();
+  };
+
+  // Instant optimistic removal on delete
   const handleDelete = async (id: string, name: string) => {
     if (!window.confirm(`¿Estás seguro de eliminar la categoría "${name}"?`)) {
       return;
     }
     setDeletingId(id);
     try {
-      await deleteCategory(id);
-      setCategories((prev) => prev.filter((c) => c.id !== id));
-      router.refresh();
+      const res = await deleteCategory(id);
+      if (res.success) {
+        setCategories((prev) => prev.filter((c) => c.id !== id));
+        router.refresh();
+      } else {
+        alert(res.error || 'Error al eliminar la categoría.');
+      }
     } catch (err: any) {
-      alert('Error al eliminar categoría: ' + (err?.message || 'Error desconocido'));
+      alert(err?.message || 'Error al eliminar categoría.');
     } finally {
       setDeletingId(null);
     }
@@ -178,7 +204,7 @@ export function CategoriesClient({ initialCategories }: CategoriesClientProps) {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         initialData={editingCategory}
-        onSuccess={() => router.refresh()}
+        onSuccess={handleSaveSuccess}
       />
 
     </div>

@@ -2,13 +2,18 @@
 
 import { createBrowserClient } from '@supabase/ssr';
 
+let client: ReturnType<typeof createBrowserClient> | undefined;
+
 /**
- * Creates a Supabase client for Client Components ('use client').
- * Auth state persists via browser cookies automatically.
+ * Creates a singleton Supabase client for Client Components ('use client').
+ * Preserves active Realtime WebSocket subscriptions across React re-renders.
  */
 export function createSupabaseBrowserClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  if (!client) {
+    client = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+  }
+  return client;
 }
