@@ -86,14 +86,18 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
     msg += `Por favor indíquenme la disponibilidad y los datos para realizar el pago por Yape / Plin / Transferencia. Muchas gracias.`;
 
     const url = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(msg)}`;
-    window.open(url, '_blank');
+    window.location.href = url;
   };
 
-  const handleShare = () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(window.location.href);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
+  const handleShare = async () => {
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(window.location.href);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+      }
+    } catch {
+      // ignore
     }
   };
 
