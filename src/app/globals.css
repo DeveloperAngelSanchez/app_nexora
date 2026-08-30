@@ -65,3 +65,20 @@ body {
   transform: scale(0.97);
   opacity: 0.9;
 }
+
+/* Minimal smooth carousel transition without layout shift */
+@keyframes heroSmoothFade {
+  0% {
+    opacity: 0.25;
+    transform: scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-hero-fade {
+  animation: heroSmoothFade 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
