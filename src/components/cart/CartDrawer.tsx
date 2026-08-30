@@ -20,10 +20,13 @@ interface CartDrawerProps {
   settings?: PublicSiteSettings;
 }
 
+const PLACEHOLDER_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='52%25' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-family='sans-serif' font-size='10'%3ENX%3C/text%3E%3C/svg%3E";
+
 export function CartDrawer({ settings }: CartDrawerProps) {
   const { 
     items, 
     isOpen, 
+    freeShippingThreshold: storeThreshold,
     closeCart, 
     updateQuantity, 
     removeItem, 
@@ -39,7 +42,6 @@ export function CartDrawer({ settings }: CartDrawerProps) {
   const subtotal = getSubtotal();
   const shipping = getShippingCost();
   const total = getTotal();
-  const storeThreshold = useCartStore((state) => state.freeShippingThreshold);
   const freeShippingThreshold = settings?.free_shipping_threshold ?? storeThreshold ?? 150;
   const currencySymbol = settings?.currency_symbol || 'S/';
   const amountToFreeShipping = Math.max(0, freeShippingThreshold - subtotal);
@@ -50,11 +52,11 @@ export function CartDrawer({ settings }: CartDrawerProps) {
       {/* Backdrop */}
       <div 
         onClick={closeCart}
-        className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200"
+        className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs transition-opacity"
       />
 
       {/* Drawer Panel */}
-      <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-white border-l border-slate-200 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="fixed right-0 top-0 bottom-0 z-[60] w-full max-w-md bg-white border-l border-slate-200 shadow-2xl flex flex-col transition-transform">
         
         {/* Header */}
         <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -120,9 +122,12 @@ export function CartDrawer({ settings }: CartDrawerProps) {
             items.map((item, idx) => (
               <div key={`${item.product.id}-${item.selectedColor}-${item.selectedModel}-${idx}`} className="pt-4 first:pt-0 flex gap-3.5">
                 <img
-                  src={item.product.images[0] || '/placeholder.png'}
-                  alt={item.product.name}
+                  src={item.product?.images?.[0] || PLACEHOLDER_IMG}
+                  alt={item.product?.name || 'Producto'}
                   className="w-16 h-16 object-contain bg-slate-50 rounded-xl p-1.5 border border-slate-100 shrink-0"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = PLACEHOLDER_IMG;
+                  }}
                 />
 
                 <div className="flex-1 min-w-0 flex flex-col justify-between">
