@@ -16,7 +16,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  Smartphone
+  Smartphone,
+  Truck
 } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 
@@ -28,6 +29,7 @@ const navigation = [
   { name: 'Escáner Móvil', href: `${ADMIN_BASE}/scanner`, icon: Smartphone },
   { name: 'Categorías', href: `${ADMIN_BASE}/categorias`, icon: Layers },
   { name: 'Pedidos', href: `${ADMIN_BASE}/pedidos`, icon: ShoppingBag },
+  { name: 'Envíos', href: `${ADMIN_BASE}/envios`, icon: Truck },
   { name: 'Promociones', href: `${ADMIN_BASE}/promociones`, icon: Tag },
   { name: 'Configuración', href: `${ADMIN_BASE}/configuracion`, icon: Settings },
 ];

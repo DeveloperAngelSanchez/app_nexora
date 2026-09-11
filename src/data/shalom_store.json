@@ -1,0 +1,57 @@
+{
+  "connection": {
+    "is_connected": false,
+    "shalom_email": "",
+    "auth_token": "",
+    "terms_accepted": false,
+    "terms_accepted_at": null,
+    "status": "disconnected",
+    "updated_at": null
+  },
+  "shipments": [
+    {
+      "id": "sh-95379502-P3PJ",
+      "numero": "95379502",
+      "codigo": "P3PJ",
+      "ose_id": 98851762,
+      "estado": "En tránsito",
+      "subtitulo": "Rumbo a su destino.",
+      "fecha_estado": "2026-09-10 13:45:52",
+      "fecha_envio": "2026-09-10 12:57:00",
+      "tipo_pago": "Contra entrega",
+      "monto": "12.00",
+      "estado_pago": "Por cobrar (CR)",
+      "origen_nombre": "Agencia Raymondi (La Victoria)",
+      "origen_direccion": "JR. ANTONIO RAYMONDI NRO. 113, LA VICTORIA, LIMA",
+      "destino_nombre": "Agencia Paita Sol y Mar",
+      "destino_direccion": "MZ. H LT. 14 URB. SOL Y MAR, PAITA, PIURA",
+      "destinatario": "Cliente Nexora Store",
+      "comprobante_pdf": "https://www.nubefact.com/cpe/82b646ac-150e-484e-aa6e-969c6f9123fb.pdf",
+      "carguero": "1045277",
+      "last_checked_at": "2026-09-11T02:51:16.323Z",
+      "created_at": "2026-09-10T20:00:00.000Z"
+    },
+    {
+      "id": "sh-94567034-3KPC",
+      "numero": "94567034",
+      "codigo": "3KPC",
+      "ose_id": 98124501,
+      "estado": "En destino",
+      "subtitulo": "Disponible para retiro en agencia de destino.",
+      "fecha_estado": "09/09/26 a las 10:30",
+      "fecha_envio": "2026-09-09 10:30:00",
+      "tipo_pago": "Pagado en origen",
+      "monto": "15.00",
+      "estado_pago": "Pagado",
+      "origen_nombre": "Agencia San Borja",
+      "origen_direccion": "AV. AVIACIÓN 2819, SAN BORJA, LIMA (Frente a Bembos)",
+      "destino_nombre": "Agencia Paita Sol y Mar",
+      "destino_direccion": "MZ. H LT. 14 URB. SOL Y MAR, PAITA, PIURA",
+      "destinatario": "Cliente VIP Nexora",
+      "comprobante_pdf": "https://www.nubefact.com/cpe/82b646ac-150e-484e-aa6e-969c6f9123fb.pdf",
+      "carguero": "1042190",
+      "last_checked_at": "2026-09-10T18:15:00.000Z",
+      "created_at": "2026-09-09T10:30:00.000Z"
+    }
+  ]
+}
