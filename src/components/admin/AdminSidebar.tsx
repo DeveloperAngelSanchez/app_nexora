@@ -59,9 +59,13 @@ export function AdminSidebar({
 
   const renderContent = (collapsed: boolean, isMobile: boolean) => (
     <div className="flex flex-col h-full bg-white border-r border-slate-200 shadow-xs select-none">
-      {/* Brand Header */}
-      <div className={`h-20 flex items-center border-b border-slate-100 transition-all ${
-        collapsed ? 'justify-center px-2' : 'justify-between px-6'
+      {/* Brand Header con soporte de safe-area-inset-top en móvil */}
+      <div className={`flex items-center border-b border-slate-100 transition-all ${
+        isMobile 
+          ? 'pt-[env(safe-area-inset-top,0px)] h-[calc(5rem+env(safe-area-inset-top,0px))] px-6' 
+          : collapsed 
+            ? 'h-20 justify-center px-2' 
+            : 'h-20 justify-between px-6'
       }`}>
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black text-sm shadow-xs shrink-0">
@@ -131,8 +135,10 @@ export function AdminSidebar({
         })}
       </nav>
 
-      {/* Footer Actions */}
-      <div className="p-3 border-t border-slate-100 space-y-1.5 bg-slate-50/50">
+      {/* Footer Actions con soporte safe-area-inset-bottom para iOS Home Indicator */}
+      <div className={`p-3 border-t border-slate-100 space-y-1.5 bg-slate-50/50 ${
+        isMobile ? 'pb-[calc(1rem+env(safe-area-inset-bottom,0px))]' : ''
+      }`}>
         
         {/* Desktop Collapse / Expand Toggle Button */}
         {!isMobile && onToggleCollapse && (

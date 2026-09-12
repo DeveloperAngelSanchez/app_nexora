@@ -264,7 +264,7 @@ export function EnviosDashboardClient() {
   const entregadoCount = shipments.filter(s => s.estado.toLowerCase().includes('entreg')).length;
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-8 pb-[calc(4rem+env(safe-area-inset-bottom,0px))]">
       
       {/* 1. Header principal con botón "Registrar Pedido" */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">

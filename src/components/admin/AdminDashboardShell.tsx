@@ -48,7 +48,7 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
         isCollapsed ? 'md:ml-20' : 'md:ml-64'
       }`}>
         <AdminTopBar onToggleMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
-        <main className="p-4 sm:p-6 md:p-8 flex-1">
+        <main className="p-4 sm:p-6 md:p-8 flex-1 pb-[calc(2rem+env(safe-area-inset-bottom,0px))]">
           {children}
         </main>
       </div>

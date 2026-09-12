@@ -70,8 +70,8 @@ export function RegisterShipmentDrawer({
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
         <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col transform transition-transform duration-300 ease-out">
           
-          {/* Header del Drawer */}
-          <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          {/* Header del Drawer con soporte de safe-area-inset-top */}
+          <div className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-red-100/70 text-red-600 flex items-center justify-center">
                 <PackagePlus className="w-5 h-5" />
@@ -149,8 +149,8 @@ export function RegisterShipmentDrawer({
               </div>
             </div>
 
-            {/* Footer con botón de acción */}
-            <div className="pt-6 border-t border-slate-100 flex items-center gap-3">
+            {/* Footer con botón de acción y soporte de safe-area-inset-bottom para iOS */}
+            <div className="pt-6 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] border-t border-slate-100 flex items-center gap-3">
               <button
                 type="button"
                 onClick={onClose}

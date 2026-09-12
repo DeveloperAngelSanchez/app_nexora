@@ -93,7 +93,7 @@ export function OrdersTableClient({ initialOrders, currentStatus, currentStatusF
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-[calc(4rem+env(safe-area-inset-bottom,0px))]">
       
       {/* Header */}
       <div>
