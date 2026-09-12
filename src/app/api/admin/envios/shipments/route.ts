@@ -3,11 +3,72 @@ import { getShalomShipments, saveOrUpdateShipment, getShalomConnection } from '@
 import { getShalomStatusByOseId, normalizeShalomStatus, verifyAndResolveOrderDocuments } from '@/lib/shalom/api';
 import { KNOWN_SHALOM_ORDERS } from '@/lib/shalom/known-orders';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   try {
-    const shipments = getShalomShipments();
+    let shipments = getShalomShipments();
     const connection = getShalomConnection();
-    return NextResponse.json({ success: true, shipments, connection });
+    const authToken = connection.is_connected ? connection.auth_token : undefined;
+
+    // Sincronización proactiva en vivo:
+    // Si algún envío activo (no 'Entregado') tiene más de 30 segundos sin consultar
+    // o no tiene la fecha más reciente, consultamos Shalom de forma asíncrona
+    // para que la lista devuelta al recargar esté 100% al día sin obligar al usuario a hacer clic.
+    const now = Date.now();
+    const activeShipments = shipments.filter((s) => s.estado !== 'Entregado' && s.ose_id);
+
+    if (activeShipments.length > 0) {
+      const syncTasks = activeShipments.map(async (s) => {
+        const lastChecked = s.last_checked_at ? new Date(s.last_checked_at).getTime() : 0;
+        if (now - lastChecked > 30000 || !s.last_checked_at) {
+          try {
+            const raw = await getShalomStatusByOseId(s.ose_id!, authToken);
+            const norm = normalizeShalomStatus(raw, s.numero, s.codigo, s.ose_id);
+            const docInfo = verifyAndResolveOrderDocuments({
+              numero: s.numero,
+              codigo: s.codigo,
+              ose_id: s.ose_id,
+              tipo_pago: s.tipo_pago,
+              estado_pago: s.estado_pago,
+              comprobante_pdf: s.comprobante_pdf,
+              grt_url: s.grt_url,
+            });
+
+            saveOrUpdateShipment({
+              ...s,
+              estado: norm.estado,
+              subtitulo: norm.subtitulo,
+              fecha_estado: norm.fecha_estado || s.fecha_estado,
+              carguero: norm.carguero || s.carguero,
+              comprobante_pdf: docInfo.comprobante_pdf,
+              comprobante_pendiente: docInfo.comprobante_pendiente,
+              grt_url: docInfo.grt_url,
+              last_checked_at: new Date().toISOString(),
+            });
+          } catch {
+            // Si la llamada externa falla, se mantiene el estado persistido
+          }
+        }
+      });
+
+      await Promise.allSettled(syncTasks);
+      shipments = getShalomShipments();
+    }
+
+    return NextResponse.json(
+      { success: true, shipments, connection },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          'CDN-Cache-Control': 'no-store',
+          'Vercel-CDN-Cache-Control': 'no-store',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
+    );
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error?.message || 'Error al obtener envíos' },

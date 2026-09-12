@@ -58,10 +58,16 @@ export function EnviosDashboardClient() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Cargar envíos persistidos y conexión
+  // Cargar envíos persistidos y conexión con cache-busting
   const loadShipments = async () => {
     try {
-      const res = await fetch('/api/admin/envios/shipments');
+      const res = await fetch('/api/admin/envios/shipments', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      });
       const data = await res.json();
       if (data.success) {
         setShipments(data.shipments || []);

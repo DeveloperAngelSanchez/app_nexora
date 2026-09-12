@@ -28,6 +28,7 @@ export async function getShalomStatusByOseId(
     method: 'POST',
     headers,
     body: formData,
+    signal: AbortSignal.timeout(3500),
   });
 
   if (!response.ok) {

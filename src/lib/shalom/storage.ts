@@ -103,22 +103,22 @@ function ensureStoreFile(): ShalomStoreData {
 
 function sanitizeShipments(shipments: ShalomStoredShipment[]): ShalomStoredShipment[] {
   return shipments.map((s) => {
+    let item = { ...s };
     // Si la orden 95379502 tiene la boleta duplicada de 94567034, corregir el registro
-    if (s.numero === '95379502' && s.comprobante_pdf?.includes('82b646ac-150e-484e-aa6e-969c6f9123fb')) {
-      return {
-        ...s,
-        comprobante_pdf: undefined,
-        comprobante_pendiente: true,
-        grt_url: s.grt_url || 'https://shalom.com.pe/rastrea',
-      };
+    if (item.numero === '95379502') {
+      if (item.comprobante_pdf?.includes('82b646ac-150e-484e-aa6e-969c6f9123fb')) {
+        item.comprobante_pdf = undefined;
+        item.comprobante_pendiente = true;
+      }
+      if (item.estado === 'En tránsito') {
+        item.estado = 'En destino';
+        item.subtitulo = 'Disponible para retiro en agencia de destino.';
+      }
     }
-    if (!s.grt_url && s.ose_id) {
-      return {
-        ...s,
-        grt_url: 'https://shalom.com.pe/rastrea',
-      };
+    if (!item.grt_url && item.ose_id) {
+      item.grt_url = 'https://shalom.com.pe/rastrea';
     }
-    return s;
+    return item;
   });
 }
 
