@@ -103,6 +103,11 @@ export function EnviosDashboardClient() {
       destino_direccion: s.destino_direccion,
       destinatario: s.destinatario,
       comprobante_pdf: s.comprobante_pdf,
+      comprobante_pendiente: s.comprobante_pendiente,
+      grt_url: s.grt_url,
+      tipo_pago: s.tipo_pago,
+      monto: s.monto,
+      estado_pago: s.estado_pago,
       carguero: s.carguero,
     };
   };
@@ -629,10 +634,12 @@ export function EnviosDashboardClient() {
                                   <ShalomStatusCard
                                     tracking={activeTracking}
                                     onDownloadGrt={() => {
-                                      if (activeTracking.comprobante_pdf) {
-                                        window.open(activeTracking.comprobante_pdf, '_blank');
+                                      if (activeTracking.grt_url) {
+                                        window.open(activeTracking.grt_url, '_blank');
+                                      } else if (activeTracking.ose_id) {
+                                        window.open('https://shalom.com.pe/rastrea', '_blank');
                                       } else {
-                                        alert(`Abriendo comprobante de la orden #${activeTracking.numero}...`);
+                                        alert(`Consultando Guía de Remisión Transportista (GRT) para orden #${activeTracking.numero}...`);
                                       }
                                     }}
                                   />
@@ -673,7 +680,7 @@ export function EnviosDashboardClient() {
                                         </div>
                                       </div>
 
-                                      {activeTracking.comprobante_pdf && (
+                                      {activeTracking.comprobante_pdf ? (
                                         <div className="mt-3 sm:mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
                                           <span className="text-slate-600">
                                             Comprobante electrónico oficial emitido en <strong>Nubefact</strong>:
@@ -688,6 +695,31 @@ export function EnviosDashboardClient() {
                                             <span>Ver Factura/Boleta PDF</span>
                                             <ExternalLink className="w-3.5 h-3.5" />
                                           </a>
+                                        </div>
+                                      ) : (
+                                        <div className="mt-3 sm:mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-500">
+                                          <div className="flex items-center gap-2">
+                                            <FileText className="w-4 h-4 text-amber-500 shrink-0" />
+                                            <span>
+                                              {activeTracking.estado_pago?.toLowerCase().includes('cobrar')
+                                                ? `Comprobante de pago: Se emitirá en agencia de destino (${activeTracking.destino_nombre || 'Agencia Destino'}) al cobrar S/ ${activeTracking.monto || '12.00'} contra entrega.`
+                                                : 'Comprobante de pago: No emitido o pendiente de facturación en agencia.'}
+                                            </span>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (activeTracking.grt_url) {
+                                                window.open(activeTracking.grt_url, '_blank');
+                                              } else {
+                                                window.open('https://shalom.com.pe/rastrea', '_blank');
+                                              }
+                                            }}
+                                            className="inline-flex items-center gap-1 text-slate-700 hover:text-red-600 font-semibold cursor-pointer transition-colors shrink-0"
+                                          >
+                                            <span>Consultar GRT Oficial</span>
+                                            <ExternalLink className="w-3.5 h-3.5" />
+                                          </button>
                                         </div>
                                       )}
                                     </div>

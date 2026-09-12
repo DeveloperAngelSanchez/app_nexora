@@ -55,7 +55,7 @@ export function ShalomStatusCard({
                 type="button"
                 onClick={onDownloadGrt}
                 className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 rounded-full border border-red-500 text-red-600 hover:bg-red-50 active:scale-95 text-[11px] sm:text-xs font-bold transition-all shadow-2xs cursor-pointer group whitespace-nowrap"
-                title="Descargar Guía de Remisión Transportista"
+                title="Descargar Guía de Remisión Transportista (GRT)"
               >
                 <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-red-600 group-hover:translate-y-0.5 transition-transform" />
                 <span>GRT</span>
@@ -67,10 +67,10 @@ export function ShalomStatusCard({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 rounded-full border border-slate-300 text-slate-700 hover:bg-slate-100 text-[11px] sm:text-xs font-semibold transition-all whitespace-nowrap"
-                  title="Ver Comprobante Electrónico en Nubefact"
+                  title="Ver Comprobante Electrónico Oficial"
                 >
                   <ExternalLink className="w-3 h-3 text-slate-500" />
-                  <span>PDF Factura</span>
+                  <span>{tracking.tipo_pago?.toLowerCase().includes('factura') ? 'PDF Factura' : 'PDF Boleta'}</span>
                 </a>
               )}
             </div>

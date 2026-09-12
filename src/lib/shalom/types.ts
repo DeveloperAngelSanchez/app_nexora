@@ -66,6 +66,13 @@ export interface ShalomTrackingResult {
   destinatario?: string;
   carguero?: string;
   comprobante_pdf?: string;
+  comprobante_serie?: string;
+  comprobante_numero?: string;
+  comprobante_pendiente?: boolean;
+  grt_url?: string;
+  tipo_pago?: string;
+  monto?: string;
+  estado_pago?: string;
   raw_estados?: ShalomStatusResponse;
   raw_buscar?: ShalomBuscarData;
 }

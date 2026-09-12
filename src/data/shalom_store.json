@@ -26,7 +26,8 @@
       "destino_nombre": "Agencia Paita Sol y Mar",
       "destino_direccion": "MZ. H LT. 14 URB. SOL Y MAR, PAITA, PIURA",
       "destinatario": "Cliente Nexora Store",
-      "comprobante_pdf": "https://www.nubefact.com/cpe/82b646ac-150e-484e-aa6e-969c6f9123fb.pdf",
+      "grt_url": "https://shalom.com.pe/rastrea",
+      "comprobante_pendiente": true,
       "carguero": "1045277",
       "last_checked_at": "2026-09-11T02:51:16.323Z",
       "created_at": "2026-09-10T20:00:00.000Z"
@@ -49,6 +50,8 @@
       "destino_direccion": "MZ. H LT. 14 URB. SOL Y MAR, PAITA, PIURA",
       "destinatario": "Cliente VIP Nexora",
       "comprobante_pdf": "https://www.nubefact.com/cpe/82b646ac-150e-484e-aa6e-969c6f9123fb.pdf",
+      "comprobante_pendiente": false,
+      "grt_url": "https://shalom.com.pe/rastrea",
       "carguero": "1042190",
       "last_checked_at": "2026-09-10T18:15:00.000Z",
       "created_at": "2026-09-09T10:30:00.000Z"

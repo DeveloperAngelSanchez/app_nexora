@@ -16,6 +16,10 @@ export interface ShalomStoredShipment {
   destino_direccion?: string;
   destinatario?: string;
   comprobante_pdf?: string;
+  comprobante_serie?: string;
+  comprobante_numero?: string;
+  comprobante_pendiente?: boolean;
+  grt_url?: string;
   carguero?: string;
   fecha_envio?: string; // Fecha en que se colocó el paquete en la agencia de origen
   tipo_pago?: string; // Ej: Contra entrega, Pagado en origen
@@ -73,6 +77,7 @@ function ensureStoreFile(): ShalomStoreData {
     if (fs.existsSync(TMP_STORE_FILE)) {
       const raw = fs.readFileSync(TMP_STORE_FILE, 'utf-8');
       memoryStore = JSON.parse(raw) as ShalomStoreData;
+      memoryStore.shipments = sanitizeShipments(memoryStore.shipments || []);
       return memoryStore;
     }
   } catch (err) {
@@ -84,6 +89,7 @@ function ensureStoreFile(): ShalomStoreData {
     if (fs.existsSync(STORE_FILE)) {
       const raw = fs.readFileSync(STORE_FILE, 'utf-8');
       memoryStore = JSON.parse(raw) as ShalomStoreData;
+      memoryStore.shipments = sanitizeShipments(memoryStore.shipments || []);
       return memoryStore;
     }
   } catch (err) {
@@ -93,6 +99,27 @@ function ensureStoreFile(): ShalomStoreData {
   // 3. Fallback a datos por defecto
   memoryStore = getDefaultStoreData();
   return memoryStore;
+}
+
+function sanitizeShipments(shipments: ShalomStoredShipment[]): ShalomStoredShipment[] {
+  return shipments.map((s) => {
+    // Si la orden 95379502 tiene la boleta duplicada de 94567034, corregir el registro
+    if (s.numero === '95379502' && s.comprobante_pdf?.includes('82b646ac-150e-484e-aa6e-969c6f9123fb')) {
+      return {
+        ...s,
+        comprobante_pdf: undefined,
+        comprobante_pendiente: true,
+        grt_url: s.grt_url || 'https://shalom.com.pe/rastrea',
+      };
+    }
+    if (!s.grt_url && s.ose_id) {
+      return {
+        ...s,
+        grt_url: 'https://shalom.com.pe/rastrea',
+      };
+    }
+    return s;
+  });
 }
 
 function writeStoreData(data: ShalomStoreData) {
@@ -204,6 +231,10 @@ export function saveOrUpdateShipment(shipment: Partial<ShalomStoredShipment> & {
       destino_direccion: shipment.destino_direccion,
       destinatario: shipment.destinatario,
       comprobante_pdf: shipment.comprobante_pdf,
+      comprobante_serie: shipment.comprobante_serie,
+      comprobante_numero: shipment.comprobante_numero,
+      comprobante_pendiente: shipment.comprobante_pendiente,
+      grt_url: shipment.grt_url,
       carguero: shipment.carguero,
       fecha_envio: shipment.fecha_envio || new Date().toISOString(),
       tipo_pago: shipment.tipo_pago || 'Contra entrega',

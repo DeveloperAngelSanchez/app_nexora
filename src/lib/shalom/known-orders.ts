@@ -8,6 +8,8 @@ export interface KnownShalomOrder {
   destino_direccion: string;
   destinatario: string;
   comprobante_pdf?: string;
+  comprobante_pendiente?: boolean;
+  grt_url?: string;
   tipo_pago?: string;
   monto?: string;
   estado_pago?: string;
@@ -30,6 +32,8 @@ export const KNOWN_SHALOM_ORDERS: Record<string, KnownShalomOrder> = {
     estado_pago: 'Por cobrar (CR)',
     fecha_envio: '2026-09-10 12:57:00',
     contenido: '1 PAQUETERIA S (Accesorios Nexora)',
+    grt_url: 'https://shalom.com.pe/rastrea',
+    comprobante_pendiente: true,
   },
   '94567034': {
     numero: '94567034',
@@ -46,5 +50,7 @@ export const KNOWN_SHALOM_ORDERS: Record<string, KnownShalomOrder> = {
     estado_pago: 'Pagado',
     fecha_envio: '2026-09-09 10:30:00',
     contenido: '1 PAQUETERIA TECH',
+    grt_url: 'https://shalom.com.pe/rastrea',
+    comprobante_pendiente: false,
   }
 };
