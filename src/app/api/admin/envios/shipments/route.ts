@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
     if (targetOseId) {
       try {
         const raw = await getShalomStatusByOseId(targetOseId, authToken);
+        const norm = normalizeShalomStatus(raw, cleanNumero, cleanCodigo, targetOseId);
         const docInfo = verifyAndResolveOrderDocuments({
           numero: cleanNumero,
           codigo: cleanCodigo,
