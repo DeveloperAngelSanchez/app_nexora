@@ -180,9 +180,12 @@ export function EnviosDashboardClient() {
         if (expandedId === updated.id) {
           setActiveTracking(mapToTrackingResult(updated));
         }
+      } else {
+        alert(data.error || 'No se pudo actualizar el estado.');
       }
     } catch (err) {
       console.error('Error al actualizar envío:', err);
+      alert('Error de conexión al actualizar el envío.');
     } finally {
       setUpdatingId(null);
     }
@@ -588,115 +591,112 @@ export function EnviosDashboardClient() {
                           id={`shipment-expanded-${item.id}`}
                           className="bg-slate-50/60 border-y border-red-100/60 transition-all"
                         >
-                          <td colSpan={9} className="p-3 sm:p-5 w-full max-w-full overflow-hidden">
-                            
-                            {loadingDetailId === item.id || !activeTracking ? (
-                              <div className="space-y-3">
-                                <div className="flex items-center gap-2 text-xs font-bold text-red-600 uppercase tracking-wider animate-pulse mb-1">
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                  <span>Consultando información oficial de Shalom...</span>
-                                </div>
-                                <ShalomStatusCardSkeleton />
-                              </div>
-                            ) : (
-                              <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200 w-full max-w-full overflow-hidden">
-                                
-                                <div className="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 truncate">
-                                      Visualización Oficial Shalom — Orden #{activeTracking.numero}
-                                    </h4>
-                                    {/* {(activeTracking.estado.toLowerCase().includes('trán') || activeTracking.estado.toLowerCase().includes('trans')) && (
-                                      <span className="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 flex items-center gap-1 whitespace-nowrap">
-                                        <Sparkles className="w-3 h-3 text-red-600" />
-                                        Pista en movimiento
-                                      </span>
-                                    )} */}
+                          <td colSpan={9} className="p-2 sm:p-5">
+                            {/* Contenedor adaptativo: en móvil usa sticky left-0 y ancho del viewport visible para que NO se desborde con el scroll horizontal de la tabla */}
+                            <div className="sticky left-0 w-[calc(100vw-3.25rem)] sm:w-auto max-w-[calc(100vw-3.25rem)] sm:max-w-full overflow-hidden">
+                              
+                              {loadingDetailId === item.id || !activeTracking ? (
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-2 text-xs font-bold text-red-600 uppercase tracking-wider animate-pulse mb-1">
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    <span>Consultando información oficial de Shalom...</span>
                                   </div>
-
-                                  {/* Botón Plegar: solo icono minimalista sin card, badge ni texto */}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleToggleExpand(item)}
-                                    className="p-1 text-slate-400 hover:text-slate-800 transition-colors cursor-pointer shrink-0"
-                                    title="Plegar visualización"
-                                    aria-label="Plegar visualización"
-                                  >
-                                    <ChevronUp className="w-5 h-5 stroke-[2.5]" />
-                                  </button>
+                                  <ShalomStatusCardSkeleton />
                                 </div>
-
-                                {/* Tarjeta Réplica Imagen 1 */}
-                                <ShalomStatusCard
-                                  tracking={activeTracking}
-                                  onDownloadGrt={() => {
-                                    if (activeTracking.comprobante_pdf) {
-                                      window.open(activeTracking.comprobante_pdf, '_blank');
-                                    } else {
-                                      alert(`Abriendo comprobante de la orden #${activeTracking.numero}...`);
-                                    }
-                                  }}
-                                />
-
-                                {/* Ficha de Ruta Logística Enriquecida */}
-                                {(activeTracking.origen_direccion || activeTracking.destino_direccion) && (
-                                  <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs">
-                                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-                                      <MapPin className="w-4 h-4 text-red-600" />
-                                      Ruta Logística y Puntos de Entrega
-                                    </h4>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-                                      <div className="p-4 rounded-2xl bg-slate-50/90 border border-slate-100">
-                                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase">
-                                          <span className="w-2.5 h-2.5 rounded-full bg-red-600" />
-                                          Punto de Origen
-                                        </div>
-                                        <div className="text-base font-bold text-slate-900 mt-1.5">
-                                          {activeTracking.origen_nombre || 'Agencia Origen'}
-                                        </div>
-                                        <p className="text-xs text-slate-600 mt-1 font-mono">
-                                          {activeTracking.origen_direccion}
-                                        </p>
-                                      </div>
-
-                                      <div className="p-4 rounded-2xl bg-slate-50/90 border border-slate-100">
-                                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase">
-                                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
-                                          Punto de Destino
-                                        </div>
-                                        <div className="text-base font-bold text-slate-900 mt-1.5">
-                                          {activeTracking.destino_nombre || 'Agencia Destino'}
-                                        </div>
-                                        <p className="text-xs text-slate-600 mt-1 font-mono">
-                                          {activeTracking.destino_direccion}
-                                        </p>
-                                      </div>
+                              ) : (
+                                <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200 w-full max-w-full overflow-hidden">
+                                  
+                                  <div className="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 truncate">
+                                        Visualización Oficial Shalom — Orden #{activeTracking.numero}
+                                      </h4>
                                     </div>
 
-                                    {activeTracking.comprobante_pdf && (
-                                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                                        <span className="text-slate-600">
-                                          Comprobante electrónico oficial emitido en <strong>Nubefact</strong>:
-                                        </span>
-                                        <a
-                                          href={activeTracking.comprobante_pdf}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1.5 text-red-600 hover:text-red-700 font-bold"
-                                        >
-                                          <FileText className="w-4 h-4" />
-                                          <span>Ver Factura/Boleta PDF</span>
-                                          <ExternalLink className="w-3.5 h-3.5" />
-                                        </a>
-                                      </div>
-                                    )}
+                                    {/* Botón Plegar: solo icono minimalista sin card, badge ni texto */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleExpand(item)}
+                                      className="p-1 text-slate-400 hover:text-slate-800 transition-colors cursor-pointer shrink-0"
+                                      title="Plegar visualización"
+                                      aria-label="Plegar visualización"
+                                    >
+                                      <ChevronUp className="w-5 h-5 stroke-[2.5]" />
+                                    </button>
                                   </div>
-                                )}
 
-                              </div>
-                            )}
+                                  {/* Tarjeta Réplica Imagen 1 */}
+                                  <ShalomStatusCard
+                                    tracking={activeTracking}
+                                    onDownloadGrt={() => {
+                                      if (activeTracking.comprobante_pdf) {
+                                        window.open(activeTracking.comprobante_pdf, '_blank');
+                                      } else {
+                                        alert(`Abriendo comprobante de la orden #${activeTracking.numero}...`);
+                                      }
+                                    }}
+                                  />
 
+                                  {/* Ficha de Ruta Logística Enriquecida */}
+                                  {(activeTracking.origen_direccion || activeTracking.destino_direccion) && (
+                                    <div className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-6 shadow-xs">
+                                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 sm:mb-4 flex items-center gap-2">
+                                        <MapPin className="w-4 h-4 text-red-600" />
+                                        Ruta Logística y Puntos de Entrega
+                                      </h4>
+
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-5">
+                                        <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50/90 border border-slate-100">
+                                          <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-red-600" />
+                                            Punto de Origen
+                                          </div>
+                                          <div className="text-sm sm:text-base font-bold text-slate-900 mt-1 sm:mt-1.5">
+                                            {activeTracking.origen_nombre || 'Agencia Origen'}
+                                          </div>
+                                          <p className="text-xs text-slate-600 mt-1 font-mono">
+                                            {activeTracking.origen_direccion}
+                                          </p>
+                                        </div>
+
+                                        <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50/90 border border-slate-100">
+                                          <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
+                                            Punto de Destino
+                                          </div>
+                                          <div className="text-sm sm:text-base font-bold text-slate-900 mt-1 sm:mt-1.5">
+                                            {activeTracking.destino_nombre || 'Agencia Destino'}
+                                          </div>
+                                          <p className="text-xs text-slate-600 mt-1 font-mono">
+                                            {activeTracking.destino_direccion}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      {activeTracking.comprobante_pdf && (
+                                        <div className="mt-3 sm:mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+                                          <span className="text-slate-600">
+                                            Comprobante electrónico oficial emitido en <strong>Nubefact</strong>:
+                                          </span>
+                                          <a
+                                            href={activeTracking.comprobante_pdf}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1.5 text-red-600 hover:text-red-700 font-bold"
+                                          >
+                                            <FileText className="w-4 h-4" />
+                                            <span>Ver Factura/Boleta PDF</span>
+                                            <ExternalLink className="w-3.5 h-3.5" />
+                                          </a>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                </div>
+                              )}
+
+                            </div>
                           </td>
                         </tr>
                       )}

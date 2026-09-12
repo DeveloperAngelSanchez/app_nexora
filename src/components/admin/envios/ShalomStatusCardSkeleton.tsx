@@ -35,70 +35,70 @@ export function ShalomStatusCardSkeleton() {
       `}</style>
 
       {/* Tarjeta Principal Shimmer */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 md:p-8">
+      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-3.5 sm:p-6 md:p-8">
         
         {/* Cabecera Shimmer */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6">
-          <div className="flex items-center gap-4 sm:gap-6 w-full md:w-auto">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6 pb-4 sm:pb-6">
+          <div className="flex items-center gap-3 sm:gap-6 w-full md:w-auto">
             
             {/* Silueta Camión Shimmer */}
-            <div className="shrink-0 w-36 h-24 sm:w-44 sm:h-28 rounded-2xl bg-slate-100 border border-slate-200/60 shimmer-effect flex items-center justify-center">
-              <div className="w-16 h-8 bg-slate-200/80 rounded-lg" />
+            <div className="shrink-0 w-28 h-20 sm:w-44 sm:h-28 rounded-2xl bg-slate-100 border border-slate-200/60 shimmer-effect flex items-center justify-center">
+              <div className="w-12 sm:w-16 h-6 sm:h-8 bg-slate-200/80 rounded-lg" />
             </div>
 
             {/* Textos y Badge Shimmer */}
-            <div className="space-y-2.5 flex-1">
-              <div className="flex items-center gap-3">
-                <div className="h-7 sm:h-8 w-36 sm:w-44 bg-slate-200/90 rounded-xl shimmer-effect" />
-                <div className="h-6 w-16 bg-slate-100 rounded-full border border-slate-200 shimmer-effect" />
+            <div className="space-y-2 flex-1">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="h-6 sm:h-8 w-28 sm:w-44 bg-slate-200/90 rounded-xl shimmer-effect" />
+                <div className="h-5 sm:h-6 w-12 sm:w-16 bg-slate-100 rounded-full border border-slate-200 shimmer-effect" />
               </div>
-              <div className="h-4 w-52 bg-slate-100 rounded-md shimmer-effect" />
-              <div className="h-3 w-32 bg-slate-100 rounded-md shimmer-effect" />
+              <div className="h-3.5 sm:h-4 w-36 sm:w-52 bg-slate-100 rounded-md shimmer-effect" />
+              <div className="h-3 w-28 sm:w-32 bg-slate-100 rounded-md shimmer-effect" />
             </div>
           </div>
 
           {/* Metadatos N° Orden Shimmer */}
-          <div className="w-full md:w-auto space-y-2 text-left md:text-right pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
-            <div className="h-6 w-48 bg-slate-200/90 rounded-lg shimmer-effect ml-0 md:ml-auto" />
-            <div className="h-4 w-36 bg-slate-100 rounded-md shimmer-effect ml-0 md:ml-auto" />
+          <div className="w-full md:w-auto space-y-1.5 sm:space-y-2 text-left md:text-right pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+            <div className="h-5 sm:h-6 w-36 sm:w-48 bg-slate-200/90 rounded-lg shimmer-effect ml-0 md:ml-auto" />
+            <div className="h-3.5 sm:h-4 w-28 sm:w-36 bg-slate-100 rounded-md shimmer-effect ml-0 md:ml-auto" />
           </div>
         </div>
 
-        {/* Stepper Horizontal Shimmer Elástico */}
-        <div className="mt-4 pt-4 border-t border-slate-100 w-full overflow-hidden">
-          <div className="flex items-center justify-between w-full max-w-3xl mx-auto px-1 sm:px-4 py-2">
+        {/* Stepper Horizontal Shimmer Elástico Adaptado a Móvil */}
+        <div className="mt-2 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-100 w-full overflow-hidden">
+          <div className="flex items-center justify-between w-full max-w-3xl mx-auto px-0.5 sm:px-4 py-1">
             
             {/* HITO 1 */}
             <div className="flex flex-col items-center shrink-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-200 ring-4 ring-white shadow-xs shimmer-effect" />
-              <div className="h-3 w-12 sm:w-14 bg-slate-100 rounded-md mt-2 shimmer-effect" />
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-200 ring-2 sm:ring-4 ring-white shadow-xs shimmer-effect" />
+              <div className="h-2.5 sm:h-3 w-10 sm:w-14 bg-slate-100 rounded-md mt-1.5 sm:mt-2 shimmer-effect" />
             </div>
 
             {/* LÍNEA 1-2 */}
-            <div className="flex-1 h-1 sm:h-1.5 mx-1.5 sm:mx-3 rounded-full bg-slate-100 mb-5 min-w-[20px] shimmer-effect" />
+            <div className="flex-1 h-1 sm:h-1.5 mx-1 sm:mx-3 rounded-full bg-slate-100 mb-4 sm:mb-5 min-w-[8px] shimmer-effect" />
 
             {/* HITO 2 */}
             <div className="flex flex-col items-center shrink-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-200 ring-4 ring-white shadow-xs shimmer-effect" />
-              <div className="h-3 w-12 sm:w-14 bg-slate-100 rounded-md mt-2 shimmer-effect" />
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-200 ring-2 sm:ring-4 ring-white shadow-xs shimmer-effect" />
+              <div className="h-2.5 sm:h-3 w-10 sm:w-14 bg-slate-100 rounded-md mt-1.5 sm:mt-2 shimmer-effect" />
             </div>
 
             {/* LÍNEA 2-3 */}
-            <div className="flex-1 h-1 sm:h-1.5 mx-1.5 sm:mx-3 rounded-full bg-slate-100 mb-5 min-w-[20px] shimmer-effect" />
+            <div className="flex-1 h-1 sm:h-1.5 mx-1 sm:mx-3 rounded-full bg-slate-100 mb-4 sm:mb-5 min-w-[8px] shimmer-effect" />
 
             {/* HITO 3 */}
             <div className="flex flex-col items-center shrink-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-200 ring-4 ring-white shadow-xs shimmer-effect" />
-              <div className="h-3 w-12 sm:w-14 bg-slate-100 rounded-md mt-2 shimmer-effect" />
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-200 ring-2 sm:ring-4 ring-white shadow-xs shimmer-effect" />
+              <div className="h-2.5 sm:h-3 w-10 sm:w-14 bg-slate-100 rounded-md mt-1.5 sm:mt-2 shimmer-effect" />
             </div>
 
             {/* LÍNEA 3-4 */}
-            <div className="flex-1 h-1 sm:h-1.5 mx-1.5 sm:mx-3 rounded-full bg-slate-100 mb-5 min-w-[20px] shimmer-effect" />
+            <div className="flex-1 h-1 sm:h-1.5 mx-1 sm:mx-3 rounded-full bg-slate-100 mb-4 sm:mb-5 min-w-[8px] shimmer-effect" />
 
             {/* HITO 4 */}
             <div className="flex flex-col items-center shrink-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-200 ring-4 ring-white shadow-xs shimmer-effect" />
-              <div className="h-3 w-12 sm:w-14 bg-slate-100 rounded-md mt-2 shimmer-effect" />
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-200 ring-2 sm:ring-4 ring-white shadow-xs shimmer-effect" />
+              <div className="h-2.5 sm:h-3 w-10 sm:w-14 bg-slate-100 rounded-md mt-1.5 sm:mt-2 shimmer-effect" />
             </div>
 
           </div>

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
 export interface ShalomStoredShipment {
   id: string;
@@ -42,56 +43,79 @@ interface ShalomStoreData {
 
 const DATA_DIR = path.join(process.cwd(), 'src', 'data');
 const STORE_FILE = path.join(DATA_DIR, 'shalom_store.json');
+const TMP_STORE_FILE = path.join(os.tmpdir(), 'shalom_store.json');
+
+// Memoria caché para rendimiento instantáneo y persistencia durante la vida del contenedor serverless
+let memoryStore: ShalomStoreData | null = null;
+
+function getDefaultStoreData(): ShalomStoreData {
+  return {
+    connection: {
+      is_connected: false,
+      shalom_email: '',
+      auth_token: '',
+      terms_accepted: false,
+      terms_accepted_at: null,
+      status: 'disconnected',
+      updated_at: null,
+    },
+    shipments: [],
+  };
+}
 
 function ensureStoreFile(): ShalomStoreData {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (memoryStore) {
+    return memoryStore;
   }
 
-  if (!fs.existsSync(STORE_FILE)) {
-    const defaultData: ShalomStoreData = {
-      connection: {
-        is_connected: false,
-        shalom_email: '',
-        auth_token: '',
-        terms_accepted: false,
-        terms_accepted_at: null,
-        status: 'disconnected',
-        updated_at: null,
-      },
-      shipments: [],
-    };
-    fs.writeFileSync(STORE_FILE, JSON.stringify(defaultData, null, 2), 'utf-8');
-    return defaultData;
-  }
-
+  // 1. Intentar leer desde /tmp/shalom_store.json (donde se guardan mutaciones en Vercel/Lambda)
   try {
-    const raw = fs.readFileSync(STORE_FILE, 'utf-8');
-    return JSON.parse(raw) as ShalomStoreData;
+    if (fs.existsSync(TMP_STORE_FILE)) {
+      const raw = fs.readFileSync(TMP_STORE_FILE, 'utf-8');
+      memoryStore = JSON.parse(raw) as ShalomStoreData;
+      return memoryStore;
+    }
   } catch (err) {
-    console.error('Error leyendo shalom_store.json, regenerando...', err);
-    const defaultData: ShalomStoreData = {
-      connection: {
-        is_connected: false,
-        shalom_email: '',
-        auth_token: '',
-        terms_accepted: false,
-        terms_accepted_at: null,
-        status: 'disconnected',
-        updated_at: null,
-      },
-      shipments: [],
-    };
-    fs.writeFileSync(STORE_FILE, JSON.stringify(defaultData, null, 2), 'utf-8');
-    return defaultData;
+    console.warn('[Storage] Error leyendo de TMP_STORE_FILE:', err);
   }
+
+  // 2. Si no existe en /tmp, leer del archivo bundled src/data/shalom_store.json (lectura permitida en Vercel)
+  try {
+    if (fs.existsSync(STORE_FILE)) {
+      const raw = fs.readFileSync(STORE_FILE, 'utf-8');
+      memoryStore = JSON.parse(raw) as ShalomStoreData;
+      return memoryStore;
+    }
+  } catch (err) {
+    console.warn('[Storage] Error leyendo de STORE_FILE:', err);
+  }
+
+  // 3. Fallback a datos por defecto
+  memoryStore = getDefaultStoreData();
+  return memoryStore;
 }
 
 function writeStoreData(data: ShalomStoreData) {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  // 1. Actualizar siempre la caché en memoria inmediatamente
+  memoryStore = data;
+
+  // 2. Guardar en /tmp/shalom_store.json (siempre con permisos de escritura en Vercel / AWS Lambda / Linux / Mac)
+  try {
+    fs.writeFileSync(TMP_STORE_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('[Storage] No se pudo escribir en TMP_STORE_FILE:', err);
   }
-  fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), 'utf-8');
+
+  // 3. Si el entorno local permite escribir en src/data/shalom_store.json, hacerlo también
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    // En Vercel / Lambda lanzará EROFS (Read-only file system).
+    // Lo ignoramos de forma segura porque ya está persistido en /tmp y en la memoria del runtime.
+  }
 }
 
 // ---------------- API DE ACCESO A DATOS ----------------
