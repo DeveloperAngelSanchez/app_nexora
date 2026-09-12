@@ -70,6 +70,7 @@ export function ProductForm({ initialData, categories, isEditing = false }: Prod
   const [isBestSeller, setIsBestSeller] = useState(initialData?.is_best_seller || false);
   const [isNew, setIsNew] = useState(initialData?.is_new || false);
   const [isActive, setIsActive] = useState(initialData?.is_active ?? true);
+  const [hideFromHome, setHideFromHome] = useState(initialData?.hide_from_home || false);
   const [description, setDescription] = useState(initialData?.description || '');
   const [features, setFeatures] = useState<string[]>(
     Array.isArray(initialData?.features) && initialData.features.length > 0
@@ -146,6 +147,7 @@ export function ProductForm({ initialData, categories, isEditing = false }: Prod
       is_best_seller: isBestSeller,
       is_new: isNew,
       is_active: isActive,
+      hide_from_home: hideFromHome,
       description: description.trim(),
       features: features.filter((f) => f.trim().length > 0),
       images: images.filter((img) => img.trim().length > 0),
@@ -547,6 +549,19 @@ export function ProductForm({ initialData, categories, isEditing = false }: Prod
                 <div>
                   <p className="text-xs font-bold text-slate-900">Lanzamiento Nuevo</p>
                   <p className="text-[10px] text-slate-500">Insignia "Nuevo" en la tarjeta</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 p-3 rounded-xl bg-amber-50/50 border border-amber-200/80 cursor-pointer hover:bg-amber-100/50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={hideFromHome}
+                  onChange={(e) => setHideFromHome(e.target.checked)}
+                  className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-slate-300"
+                />
+                <div>
+                  <p className="text-xs font-bold text-slate-900">No mostrar en la página principal</p>
+                  <p className="text-[10px] text-slate-500">Solo visible en catálogo, búsquedas y por categoría</p>
                 </div>
               </label>
             </div>

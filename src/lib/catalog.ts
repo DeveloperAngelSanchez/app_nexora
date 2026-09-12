@@ -95,6 +95,7 @@ function mapDbProduct(row: any): Product {
     isFeatured: row.is_featured ?? false,
     isBestSeller: row.is_best_seller ?? false,
     isNew: row.is_new ?? false,
+    hideFromHome: row.hide_from_home ?? false,
     description: row.description || '',
     features: Array.isArray(row.features) ? row.features : [],
     variants: Array.isArray(row.variants) ? row.variants : [],
@@ -223,7 +224,9 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
 
 export async function getFeaturedProducts(limit = 8): Promise<Product[]> {
   const products = await getAllProducts();
-  return products.filter((p) => p.isFeatured || p.isBestSeller).slice(0, limit);
+  return products
+    .filter((p) => (p.isFeatured || p.isBestSeller) && !p.hideFromHome)
+    .slice(0, limit);
 }
 
 export async function getRelatedProducts(

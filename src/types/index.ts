@@ -24,6 +24,7 @@ export interface Product {
   isFeatured: boolean;
   isBestSeller: boolean;
   isNew: boolean;
+  hideFromHome?: boolean;
   description: string;
   features: string[];
   variants?: ProductVariant[];

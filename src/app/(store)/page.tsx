@@ -24,6 +24,8 @@ export default async function HomePage() {
     settings.whatsapp_message || `Hola ${settings.store_name}, deseo asesoría sobre un producto`
   )}`;
 
+  const homeProducts = allProducts.filter((p) => !p.hideFromHome);
+
   return (
     <div className="flex flex-col min-h-screen bg-[#f8fafc]">
       {/* 1. Dynamic Hero Banner with integrated Featured Products Showcase Carousel */}
@@ -36,8 +38,8 @@ export default async function HomePage() {
       {/* 2. Category Pills (100% Real from Supabase categories) */}
       <CategoryPills categories={categories} />
 
-      {/* 4. Products Grid (100% Real from Supabase products) */}
-      <ProductGrid initialProducts={allProducts} />
+      {/* 4. Products Grid (100% Real from Supabase products, excluding hidden from home) */}
+      <ProductGrid initialProducts={homeProducts} />
 
       {/* 5. FAQs Section with Google Rich Snippets Schema */}
       <FaqSection />

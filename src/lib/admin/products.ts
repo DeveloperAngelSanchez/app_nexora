@@ -22,6 +22,7 @@ export interface ProductInput {
   is_best_seller?: boolean;
   is_new?: boolean;
   is_active?: boolean;
+  hide_from_home?: boolean;
   description: string;
   features: string[];
   variants?: { name: string; options: string[] }[];
@@ -148,6 +149,7 @@ export async function createProduct(input: ProductInput) {
         is_best_seller: input.is_best_seller ?? false,
         is_new: input.is_new ?? false,
         is_active: input.is_active ?? true,
+        hide_from_home: input.hide_from_home ?? false,
         description: input.description || '',
         features: input.features || [],
         source_url: input.source_url || null,
@@ -229,6 +231,7 @@ export async function updateProduct(id: string, input: Partial<ProductInput>) {
   if (input.is_best_seller !== undefined) updateData.is_best_seller = input.is_best_seller;
   if (input.is_new !== undefined) updateData.is_new = input.is_new;
   if (input.is_active !== undefined) updateData.is_active = input.is_active;
+  if (input.hide_from_home !== undefined) updateData.hide_from_home = input.hide_from_home;
   if (input.description !== undefined) updateData.description = input.description;
   if (input.features !== undefined) updateData.features = input.features;
   if (input.source_url !== undefined) updateData.source_url = input.source_url;

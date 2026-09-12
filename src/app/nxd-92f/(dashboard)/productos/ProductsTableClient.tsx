@@ -41,6 +41,7 @@ interface ProductItem {
   in_stock: boolean;
   is_active: boolean;
   is_featured: boolean;
+  hide_from_home?: boolean;
   images: string[];
   categories?: { name: string } | null;
 }
@@ -249,6 +250,11 @@ export function ProductsTableClient({ initialProducts, categories }: ProductsTab
                               <span className="inline-flex items-center gap-1 font-mono text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200/60 px-1.5 py-0.2 rounded">
                                 <ScanLine className="w-2.5 h-2.5" />
                                 {p.barcode}
+                              </span>
+                            )}
+                            {p.hide_from_home && (
+                              <span className="inline-flex items-center text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80 px-1.5 py-0.2 rounded">
+                                Solo Catálogo
                               </span>
                             )}
                           </div>
