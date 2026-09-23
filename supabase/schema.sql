@@ -545,3 +545,51 @@ CREATE POLICY "Public can view active promotions" ON public.promotions FOR SELEC
 CREATE POLICY "Admins can manage promotions" ON public.promotions FOR ALL USING (public.is_admin());
 CREATE POLICY "Public can read site settings" ON public.site_settings FOR SELECT USING (true);
 CREATE POLICY "Admins can update site settings" ON public.site_settings FOR ALL USING (public.is_admin());
+
+-- Shipments and Integrations Config
+CREATE TABLE IF NOT EXISTS public.shipments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID REFERENCES public.orders(id) ON DELETE SET NULL,
+    carrier TEXT NOT NULL DEFAULT 'shalom',
+    numero TEXT NOT NULL,
+    codigo TEXT NOT NULL,
+    ose_id BIGINT,
+    estado TEXT NOT NULL DEFAULT 'En origen',
+    subtitulo TEXT NOT NULL DEFAULT 'Rumbo a su destino.',
+    fecha_estado TEXT,
+    origen_nombre TEXT,
+    origen_direccion TEXT,
+    destino_nombre TEXT,
+    destino_direccion TEXT,
+    destinatario TEXT,
+    carguero TEXT,
+    comprobante_pdf TEXT,
+    comprobante_serie TEXT,
+    comprobante_numero TEXT,
+    comprobante_pendiente BOOLEAN NOT NULL DEFAULT true,
+    grt_url TEXT,
+    fecha_envio TIMESTAMPTZ,
+    tipo_pago TEXT DEFAULT 'Contra entrega',
+    monto NUMERIC(10, 2) DEFAULT 12.00,
+    estado_pago TEXT DEFAULT 'Por cobrar (CR)',
+    last_checked_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_shipments_carrier_numero_codigo UNIQUE (carrier, numero, codigo)
+);
+
+CREATE TABLE IF NOT EXISTS public.integrations_config (
+    id TEXT PRIMARY KEY,
+    config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    is_connected BOOLEAN NOT NULL DEFAULT false,
+    status TEXT NOT NULL DEFAULT 'disconnected',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.shipments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.integrations_config ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins have full access to shipments" ON public.shipments FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Public read-only tracking for shipments" ON public.shipments FOR SELECT USING (true);
+CREATE POLICY "Admins have full access to integrations_config" ON public.integrations_config FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+

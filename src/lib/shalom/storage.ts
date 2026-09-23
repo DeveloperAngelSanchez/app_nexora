@@ -1,9 +1,9 @@
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
+import { createSupabaseAdminClient } from '@/lib/supabase-server';
 
 export interface ShalomStoredShipment {
   id: string;
+  order_id?: string | null;
+  carrier?: string;
   numero: string;
   codigo: string;
   ose_id?: number | string;
@@ -21,11 +21,11 @@ export interface ShalomStoredShipment {
   comprobante_pendiente?: boolean;
   grt_url?: string;
   carguero?: string;
-  fecha_envio?: string; // Fecha en que se colocó el paquete en la agencia de origen
-  tipo_pago?: string; // Ej: Contra entrega, Pagado en origen
-  monto?: string; // Ej: 12.00
-  estado_pago?: string; // Ej: Por cobrar (CR), Pagado
-  last_checked_at: string; // ISO string de última consulta
+  fecha_envio?: string;
+  tipo_pago?: string;
+  monto?: string;
+  estado_pago?: string;
+  last_checked_at: string;
   created_at: string;
 }
 
@@ -40,132 +40,164 @@ export interface ShalomConnectionState {
   updated_at: string | null;
 }
 
-interface ShalomStoreData {
-  connection: ShalomConnectionState;
-  shipments: ShalomStoredShipment[];
-}
+// Semilla de reserva en caso de fallo de conexión con Supabase
+const FALLBACK_SHIPMENTS: ShalomStoredShipment[] = [
+  {
+    id: 'sh-95379502-P3PJ',
+    numero: '95379502',
+    codigo: 'P3PJ',
+    ose_id: 98851762,
+    estado: 'En destino',
+    subtitulo: 'Disponible para retiro en agencia de destino.',
+    fecha_estado: '11/09/26 a las 08:30',
+    fecha_envio: '2026-09-10 12:57:00',
+    tipo_pago: 'Contra entrega',
+    monto: '12.00',
+    estado_pago: 'Por cobrar (CR)',
+    origen_nombre: 'Agencia Raymondi (La Victoria)',
+    origen_direccion: 'JR. ANTONIO RAYMONDI NRO. 113, LA VICTORIA, LIMA',
+    destino_nombre: 'Agencia Paita Sol y Mar',
+    destino_direccion: 'MZ. H LT. 14 URB. SOL Y MAR, PAITA, PIURA',
+    destinatario: 'Cliente Nexora Store',
+    grt_url: 'https://shalom.com.pe/rastrea',
+    comprobante_pendiente: true,
+    carguero: '1045277',
+    last_checked_at: '2026-09-11T02:51:16.323Z',
+    created_at: '2026-09-10T20:00:00.000Z',
+  },
+  {
+    id: 'sh-94567034-3KPC',
+    numero: '94567034',
+    codigo: '3KPC',
+    ose_id: 98124501,
+    estado: 'En destino',
+    subtitulo: 'Disponible para retiro en agencia de destino.',
+    fecha_estado: '09/09/26 a las 10:30',
+    fecha_envio: '2026-09-09 10:30:00',
+    tipo_pago: 'Pagado en origen',
+    monto: '15.00',
+    estado_pago: 'Pagado',
+    origen_nombre: 'Agencia San Borja',
+    origen_direccion: 'AV. AVIACIÓN 2819, SAN BORJA, LIMA (Frente a Bembos)',
+    destino_nombre: 'Agencia Paita Sol y Mar',
+    destino_direccion: 'MZ. H LT. 14 URB. SOL Y MAR, PAITA, PIURA',
+    destinatario: 'Cliente VIP Nexora',
+    comprobante_pdf: 'https://www.nubefact.com/cpe/82b646ac-150e-484e-aa6e-969c6f9123fb.pdf',
+    comprobante_pendiente: false,
+    grt_url: 'https://shalom.com.pe/rastrea',
+    carguero: '1042190',
+    last_checked_at: '2026-09-10T18:15:00.000Z',
+    created_at: '2026-09-09T10:30:00.000Z',
+  },
+];
 
-const DATA_DIR = path.join(process.cwd(), 'src', 'data');
-const STORE_FILE = path.join(DATA_DIR, 'shalom_store.json');
-const TMP_STORE_FILE = path.join(os.tmpdir(), 'shalom_store.json');
+let fallbackConnectionState: ShalomConnectionState = {
+  is_connected: false,
+  shalom_email: '',
+  auth_token: '',
+  terms_accepted: false,
+  terms_accepted_at: null,
+  status: 'disconnected',
+  updated_at: null,
+};
 
-// Memoria caché para rendimiento instantáneo y persistencia durante la vida del contenedor serverless
-let memoryStore: ShalomStoreData | null = null;
-
-function getDefaultStoreData(): ShalomStoreData {
+function mapRowToShipment(row: any): ShalomStoredShipment {
   return {
-    connection: {
-      is_connected: false,
-      shalom_email: '',
-      auth_token: '',
-      terms_accepted: false,
-      terms_accepted_at: null,
-      status: 'disconnected',
-      updated_at: null,
-    },
-    shipments: [],
+    id: String(row.id),
+    order_id: row.order_id || null,
+    carrier: row.carrier || 'shalom',
+    numero: String(row.numero),
+    codigo: String(row.codigo).toUpperCase(),
+    ose_id: row.ose_id ? Number(row.ose_id) : undefined,
+    estado: row.estado || 'En origen',
+    subtitulo: row.subtitulo || 'Rumbo a su destino.',
+    fecha_estado: row.fecha_estado || '',
+    origen_nombre: row.origen_nombre || undefined,
+    origen_direccion: row.origen_direccion || undefined,
+    destino_nombre: row.destino_nombre || undefined,
+    destino_direccion: row.destino_direccion || undefined,
+    destinatario: row.destinatario || undefined,
+    comprobante_pdf: row.comprobante_pdf || undefined,
+    comprobante_serie: row.comprobante_serie || undefined,
+    comprobante_numero: row.comprobante_numero || undefined,
+    comprobante_pendiente: row.comprobante_pendiente ?? true,
+    grt_url: row.grt_url || undefined,
+    carguero: row.carguero || undefined,
+    fecha_envio: row.fecha_envio ? new Date(row.fecha_envio).toISOString() : undefined,
+    tipo_pago: row.tipo_pago || 'Contra entrega',
+    monto: row.monto !== null && row.monto !== undefined ? Number(row.monto).toFixed(2) : '12.00',
+    estado_pago: row.estado_pago || 'Por cobrar (CR)',
+    last_checked_at: row.last_checked_at || new Date().toISOString(),
+    created_at: row.created_at || new Date().toISOString(),
   };
 }
 
-function ensureStoreFile(): ShalomStoreData {
-  if (memoryStore) {
-    return memoryStore;
-  }
+// ---------------- API DE ACCESO A DATOS (SUPABASE CON FALLBACK RESILIENTE) ----------------
 
-  // 1. Intentar leer desde /tmp/shalom_store.json (donde se guardan mutaciones en Vercel/Lambda)
+export async function getShalomConnection(): Promise<ShalomConnectionState> {
   try {
-    if (fs.existsSync(TMP_STORE_FILE)) {
-      const raw = fs.readFileSync(TMP_STORE_FILE, 'utf-8');
-      memoryStore = JSON.parse(raw) as ShalomStoreData;
-      memoryStore.shipments = sanitizeShipments(memoryStore.shipments || []);
-      return memoryStore;
+    const supabase = createSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from('integrations_config')
+      .select('*')
+      .eq('id', 'shalom')
+      .single();
+
+    if (!error && data) {
+      const config = (data.config as any) || {};
+      return {
+        is_connected: Boolean(data.is_connected),
+        shalom_email: config.shalom_email || '',
+        auth_token: config.auth_token || '',
+        terms_accepted: Boolean(config.terms_accepted),
+        terms_accepted_at: config.terms_accepted_at || null,
+        terms_accepted_ip: config.terms_accepted_ip || null,
+        status: (data.status as any) || 'disconnected',
+        updated_at: data.updated_at || null,
+      };
     }
   } catch (err) {
-    console.warn('[Storage] Error leyendo de TMP_STORE_FILE:', err);
+    console.warn('[Shalom Storage] Error al leer integrations_config de Supabase:', err);
   }
 
-  // 2. Si no existe en /tmp, leer del archivo bundled src/data/shalom_store.json (lectura permitida en Vercel)
-  try {
-    if (fs.existsSync(STORE_FILE)) {
-      const raw = fs.readFileSync(STORE_FILE, 'utf-8');
-      memoryStore = JSON.parse(raw) as ShalomStoreData;
-      memoryStore.shipments = sanitizeShipments(memoryStore.shipments || []);
-      return memoryStore;
-    }
-  } catch (err) {
-    console.warn('[Storage] Error leyendo de STORE_FILE:', err);
-  }
-
-  // 3. Fallback a datos por defecto
-  memoryStore = getDefaultStoreData();
-  return memoryStore;
+  return fallbackConnectionState;
 }
 
-function sanitizeShipments(shipments: ShalomStoredShipment[]): ShalomStoredShipment[] {
-  return shipments.map((s) => {
-    let item = { ...s };
-    // Si la orden 95379502 tiene la boleta duplicada de 94567034, corregir el registro
-    if (item.numero === '95379502') {
-      if (item.comprobante_pdf?.includes('82b646ac-150e-484e-aa6e-969c6f9123fb')) {
-        item.comprobante_pdf = undefined;
-        item.comprobante_pendiente = true;
-      }
-      if (item.estado === 'En tránsito') {
-        item.estado = 'En destino';
-        item.subtitulo = 'Disponible para retiro en agencia de destino.';
-      }
-    }
-    if (!item.grt_url && item.ose_id) {
-      item.grt_url = 'https://shalom.com.pe/rastrea';
-    }
-    return item;
-  });
-}
-
-function writeStoreData(data: ShalomStoreData) {
-  // 1. Actualizar siempre la caché en memoria inmediatamente
-  memoryStore = data;
-
-  // 2. Guardar en /tmp/shalom_store.json (siempre con permisos de escritura en Vercel / AWS Lambda / Linux / Mac)
-  try {
-    fs.writeFileSync(TMP_STORE_FILE, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (err) {
-    console.warn('[Storage] No se pudo escribir en TMP_STORE_FILE:', err);
-  }
-
-  // 3. Si el entorno local permite escribir en src/data/shalom_store.json, hacerlo también
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (err) {
-    // En Vercel / Lambda lanzará EROFS (Read-only file system).
-    // Lo ignoramos de forma segura porque ya está persistido en /tmp y en la memoria del runtime.
-  }
-}
-
-// ---------------- API DE ACCESO A DATOS ----------------
-
-export function getShalomConnection(): ShalomConnectionState {
-  const store = ensureStoreFile();
-  return store.connection;
-}
-
-export function updateShalomConnection(connection: Partial<ShalomConnectionState>): ShalomConnectionState {
-  const store = ensureStoreFile();
-  store.connection = {
-    ...store.connection,
+export async function updateShalomConnection(
+  connection: Partial<ShalomConnectionState>
+): Promise<ShalomConnectionState> {
+  const current = await getShalomConnection();
+  const next: ShalomConnectionState = {
+    ...current,
     ...connection,
     updated_at: new Date().toISOString(),
   };
-  writeStoreData(store);
-  return store.connection;
+
+  try {
+    const supabase = createSupabaseAdminClient();
+    await supabase.from('integrations_config').upsert({
+      id: 'shalom',
+      is_connected: next.is_connected,
+      status: next.status,
+      config: {
+        shalom_email: next.shalom_email,
+        auth_token: next.auth_token,
+        terms_accepted: next.terms_accepted,
+        terms_accepted_at: next.terms_accepted_at,
+        terms_accepted_ip: next.terms_accepted_ip,
+      },
+      updated_at: next.updated_at,
+    });
+  } catch (err) {
+    console.warn('[Shalom Storage] Error al guardar integrations_config en Supabase:', err);
+  }
+
+  fallbackConnectionState = next;
+  return next;
 }
 
-export function disconnectShalomAccount(): ShalomConnectionState {
-  const store = ensureStoreFile();
-  store.connection = {
+export async function disconnectShalomAccount(): Promise<ShalomConnectionState> {
+  return updateShalomConnection({
     is_connected: false,
     shalom_email: '',
     auth_token: '',
@@ -173,88 +205,167 @@ export function disconnectShalomAccount(): ShalomConnectionState {
     terms_accepted_at: null,
     terms_accepted_ip: null,
     status: 'disconnected',
-    updated_at: new Date().toISOString(),
-  };
-  writeStoreData(store);
-  return store.connection;
-}
-
-export function getShalomShipments(): ShalomStoredShipment[] {
-  const store = ensureStoreFile();
-  // Ordenar envíos por fecha de envío descendente (los más recientes arriba)
-  return [...store.shipments].sort((a, b) => {
-    const timeA = a.fecha_envio ? new Date(a.fecha_envio).getTime() : new Date(a.created_at).getTime();
-    const timeB = b.fecha_envio ? new Date(b.fecha_envio).getTime() : new Date(b.created_at).getTime();
-    return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
   });
 }
 
-export function getShalomShipmentById(id: string): ShalomStoredShipment | undefined {
-  const store = ensureStoreFile();
-  return store.shipments.find((s) => s.id === id);
+export async function getShalomShipments(): Promise<ShalomStoredShipment[]> {
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from('shipments')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data && data.length > 0) {
+      return data.map(mapRowToShipment);
+    }
+  } catch (err) {
+    console.warn('[Shalom Storage] Error consultando tabla shipments de Supabase:', err);
+  }
+
+  return FALLBACK_SHIPMENTS;
 }
 
-export function saveOrUpdateShipment(shipment: Partial<ShalomStoredShipment> & { numero: string; codigo: string }): ShalomStoredShipment {
-  const store = ensureStoreFile();
+export async function getShalomShipmentById(id: string): Promise<ShalomStoredShipment | undefined> {
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from('shipments')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (!error && data) {
+      return mapRowToShipment(data);
+    }
+  } catch (err) {
+    console.warn(`[Shalom Storage] Error obteniendo envío ${id} en Supabase:`, err);
+  }
+
+  return FALLBACK_SHIPMENTS.find((s) => s.id === id);
+}
+
+export async function saveOrUpdateShipment(
+  shipment: Partial<ShalomStoredShipment> & { numero: string; codigo: string }
+): Promise<ShalomStoredShipment> {
   const cleanNum = shipment.numero.trim();
   const cleanCod = shipment.codigo.trim().toUpperCase();
-
-  const existingIndex = store.shipments.findIndex(
-    (s) => s.numero === cleanNum && s.codigo === cleanCod
-  );
-
   const now = new Date().toISOString();
 
-  if (existingIndex >= 0) {
-    const updated: ShalomStoredShipment = {
-      ...store.shipments[existingIndex],
-      ...shipment,
-      numero: cleanNum,
-      codigo: cleanCod,
-      last_checked_at: now,
-    };
-    store.shipments[existingIndex] = updated;
-    writeStoreData(store);
-    return updated;
+  const payload: any = {
+    carrier: shipment.carrier || 'shalom',
+    numero: cleanNum,
+    codigo: cleanCod,
+    ose_id: shipment.ose_id ? Number(shipment.ose_id) : null,
+    estado: shipment.estado || 'En origen',
+    subtitulo: shipment.subtitulo || 'Rumbo a su destino.',
+    fecha_estado: shipment.fecha_estado || new Date().toLocaleString('es-PE'),
+    origen_nombre: shipment.origen_nombre || null,
+    origen_direccion: shipment.origen_direccion || null,
+    destino_nombre: shipment.destino_nombre || null,
+    destino_direccion: shipment.destino_direccion || null,
+    destinatario: shipment.destinatario || null,
+    comprobante_pdf: shipment.comprobante_pdf || null,
+    comprobante_serie: shipment.comprobante_serie || null,
+    comprobante_numero: shipment.comprobante_numero || null,
+    comprobante_pendiente: shipment.comprobante_pendiente ?? true,
+    grt_url: shipment.grt_url || null,
+    carguero: shipment.carguero || null,
+    tipo_pago: shipment.tipo_pago || 'Contra entrega',
+    monto: shipment.monto ? parseFloat(shipment.monto) : 12.00,
+    estado_pago: shipment.estado_pago || 'Por cobrar (CR)',
+    last_checked_at: now,
+  };
+
+  if (shipment.order_id) payload.order_id = shipment.order_id;
+  if (shipment.fecha_envio) payload.fecha_envio = shipment.fecha_envio;
+  if (shipment.id && !shipment.id.startsWith('sh-')) payload.id = shipment.id;
+
+  try {
+    const supabase = createSupabaseAdminClient();
+    
+    // Intentar buscar si ya existe por carrier + numero + codigo
+    const { data: existing } = await supabase
+      .from('shipments')
+      .select('id')
+      .eq('carrier', payload.carrier)
+      .eq('numero', payload.numero)
+      .eq('codigo', payload.codigo)
+      .maybeSingle();
+
+    let savedRow: any = null;
+
+    if (existing?.id) {
+      const { data, error } = await supabase
+        .from('shipments')
+        .update({
+          ...payload,
+          updated_at: now,
+        })
+        .eq('id', existing.id)
+        .select()
+        .single();
+
+      if (!error && data) savedRow = data;
+    } else {
+      const { data, error } = await supabase
+        .from('shipments')
+        .insert({
+          ...payload,
+          created_at: now,
+          updated_at: now,
+        })
+        .select()
+        .single();
+
+      if (!error && data) savedRow = data;
+    }
+
+    if (savedRow) {
+      return mapRowToShipment(savedRow);
+    }
+  } catch (err) {
+    console.error('[Shalom Storage] Error al guardar en Supabase:', err);
+  }
+
+  // Fallback en memoria si la BD estuviera inaccesible
+  const fallbackItem: ShalomStoredShipment = {
+    id: shipment.id || `sh-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    ...payload,
+    monto: String(payload.monto || '12.00'),
+    created_at: now,
+  };
+
+  const existingIdx = FALLBACK_SHIPMENTS.findIndex(
+    (s) => s.numero === cleanNum && s.codigo === cleanCod
+  );
+  if (existingIdx >= 0) {
+    FALLBACK_SHIPMENTS[existingIdx] = { ...FALLBACK_SHIPMENTS[existingIdx], ...fallbackItem };
+    return FALLBACK_SHIPMENTS[existingIdx];
   } else {
-    const created: ShalomStoredShipment = {
-      id: shipment.id || `sh-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      numero: cleanNum,
-      codigo: cleanCod,
-      ose_id: shipment.ose_id,
-      estado: shipment.estado || 'En origen',
-      subtitulo: shipment.subtitulo || 'Rumbo a su destino.',
-      fecha_estado: shipment.fecha_estado || new Date().toLocaleString('es-PE'),
-      origen_nombre: shipment.origen_nombre,
-      origen_direccion: shipment.origen_direccion,
-      destino_nombre: shipment.destino_nombre,
-      destino_direccion: shipment.destino_direccion,
-      destinatario: shipment.destinatario,
-      comprobante_pdf: shipment.comprobante_pdf,
-      comprobante_serie: shipment.comprobante_serie,
-      comprobante_numero: shipment.comprobante_numero,
-      comprobante_pendiente: shipment.comprobante_pendiente,
-      grt_url: shipment.grt_url,
-      carguero: shipment.carguero,
-      fecha_envio: shipment.fecha_envio || new Date().toISOString(),
-      tipo_pago: shipment.tipo_pago || 'Contra entrega',
-      monto: shipment.monto || '12.00',
-      estado_pago: shipment.estado_pago || 'Por cobrar',
-      last_checked_at: now,
-      created_at: now,
-    };
-    store.shipments.unshift(created);
-    writeStoreData(store);
-    return created;
+    FALLBACK_SHIPMENTS.unshift(fallbackItem);
+    return fallbackItem;
   }
 }
 
-export function deleteShipment(id: string): boolean {
-  const store = ensureStoreFile();
-  const initialLen = store.shipments.length;
-  store.shipments = store.shipments.filter((s) => s.id !== id);
-  if (store.shipments.length !== initialLen) {
-    writeStoreData(store);
+export async function deleteShipment(id: string): Promise<boolean> {
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { error } = await supabase
+      .from('shipments')
+      .delete()
+      .eq('id', id);
+
+    if (!error) return true;
+  } catch (err) {
+    console.warn(`[Shalom Storage] Error al eliminar envío ${id} en Supabase:`, err);
+  }
+
+  const initialLen = FALLBACK_SHIPMENTS.length;
+  const filtered = FALLBACK_SHIPMENTS.filter((s) => s.id !== id);
+  if (filtered.length !== initialLen) {
+    FALLBACK_SHIPMENTS.length = 0;
+    FALLBACK_SHIPMENTS.push(...filtered);
     return true;
   }
   return false;

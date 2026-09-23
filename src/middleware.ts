@@ -3,12 +3,16 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 const ADMIN_PATH = '/nxd-92f';
 const LOGIN_PATH = `${ADMIN_PATH}/login`;
+const ADMIN_API_PATH = '/api/admin';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Only intercept admin routes
-  if (!pathname.startsWith(ADMIN_PATH)) {
+  const isAdminPage = pathname.startsWith(ADMIN_PATH);
+  const isAdminApi = pathname.startsWith(ADMIN_API_PATH);
+
+  // Only intercept admin pages and admin API routes
+  if (!isAdminPage && !isAdminApi) {
     return NextResponse.next();
   }
 
@@ -43,6 +47,18 @@ export async function middleware(request: NextRequest) {
   // Refresh session & verify user
   const { data: { user } } = await supabase.auth.getUser();
 
+  // Protect Admin API routes: return 401 JSON if unauthorized
+  if (isAdminApi) {
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Acceso no autorizado. Se requiere iniciar sesión como administrador.' },
+        { status: 401 }
+      );
+    }
+    return response;
+  }
+
+  // Protect Admin Pages
   // If already logged in and visiting /login -> redirect straight to admin dashboard
   if (pathname === LOGIN_PATH) {
     if (user) {
@@ -51,7 +67,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // If NOT logged in and visiting any admin route -> redirect to admin login
+  // If NOT logged in and visiting any admin page -> redirect to admin login
   if (!user) {
     const loginUrl = new URL(LOGIN_PATH, request.url);
     if (pathname !== ADMIN_PATH) {
@@ -64,5 +80,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/nxd-92f/:path*'],
+  matcher: ['/nxd-92f/:path*', '/api/admin/:path*'],
 };

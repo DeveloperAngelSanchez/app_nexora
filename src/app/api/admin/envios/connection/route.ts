@@ -4,7 +4,7 @@ import crypto from 'crypto';
 
 export async function GET() {
   try {
-    const connection = getShalomConnection();
+    const connection = await getShalomConnection();
     return NextResponse.json({ success: true, connection });
   } catch (error: any) {
     return NextResponse.json(
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     const signature = crypto.createHmac('sha256', '.Ov3rsku112024l4r43l.').update(`${b64Header}.${b64Payload}`).digest('base64url');
     const token = `${b64Header}.${b64Payload}.${signature}`;
 
-    const updated = updateShalomConnection({
+    const updated = await updateShalomConnection({
       is_connected: true,
       shalom_email: cleanEmail,
       auth_token: token,
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE() {
   try {
-    const disconnected = disconnectShalomAccount();
+    const disconnected = await disconnectShalomAccount();
     return NextResponse.json({
       success: true,
       connection: disconnected,

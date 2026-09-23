@@ -1,21 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getShalomShipments, saveOrUpdateShipment, getShalomConnection } from '@/lib/shalom/storage';
-import { getShalomStatusByOseId, normalizeShalomStatus, verifyAndResolveOrderDocuments } from '@/lib/shalom/api';
+import { 
+  getShalomStatusByOseId, 
+  normalizeShalomStatus, 
+  verifyAndResolveOrderDocuments,
+  getShalomOrderDetails 
+} from '@/lib/shalom/api';
 import { KNOWN_SHALOM_ORDERS } from '@/lib/shalom/known-orders';
+import { createSupabaseAdminClient } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET() {
   try {
-    let shipments = getShalomShipments();
-    const connection = getShalomConnection();
+    let shipments = await getShalomShipments();
+    const connection = await getShalomConnection();
     const authToken = connection.is_connected ? connection.auth_token : undefined;
 
-    // Sincronización proactiva en vivo:
-    // Si algún envío activo (no 'Entregado') tiene más de 30 segundos sin consultar
-    // o no tiene la fecha más reciente, consultamos Shalom de forma asíncrona
-    // para que la lista devuelta al recargar esté 100% al día sin obligar al usuario a hacer clic.
+    // Sincronización proactiva en vivo para envíos activos
     const now = Date.now();
     const activeShipments = shipments.filter((s) => s.estado !== 'Entregado' && s.ose_id);
 
@@ -36,7 +39,7 @@ export async function GET() {
               grt_url: s.grt_url,
             });
 
-            saveOrUpdateShipment({
+            await saveOrUpdateShipment({
               ...s,
               estado: norm.estado,
               subtitulo: norm.subtitulo,
@@ -54,7 +57,7 @@ export async function GET() {
       });
 
       await Promise.allSettled(syncTasks);
-      shipments = getShalomShipments();
+      shipments = await getShalomShipments();
     }
 
     return NextResponse.json(
@@ -80,7 +83,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { numero, codigo } = body;
+    const { numero, codigo, order_id, order_number } = body;
 
     if (!numero || !codigo) {
       return NextResponse.json(
@@ -92,11 +95,44 @@ export async function POST(req: NextRequest) {
     const cleanNumero = String(numero).trim();
     const cleanCodigo = String(codigo).trim().toUpperCase();
 
-    const connection = getShalomConnection();
+    // Resolver order_id si se pasó un order_number
+    let resolvedOrderId = order_id || null;
+    const adminSb = createSupabaseAdminClient();
+
+    if (!resolvedOrderId && order_number) {
+      try {
+        const cleanOrdNum = String(order_number).trim().toUpperCase();
+        const { data: matchedOrder } = await adminSb
+          .from('orders')
+          .select('id')
+          .eq('order_number', cleanOrdNum)
+          .maybeSingle();
+
+        if (matchedOrder?.id) {
+          resolvedOrderId = matchedOrder.id;
+        }
+      } catch (ordLookupErr) {
+        console.warn('Error resolviendo order_number:', ordLookupErr);
+      }
+    }
+
+    const connection = await getShalomConnection();
     const authToken = connection.is_connected ? connection.auth_token : undefined;
 
     const known = KNOWN_SHALOM_ORDERS[cleanNumero];
-    const targetOseId = known ? known.ose_id : null;
+    let targetOseId = known ? known.ose_id : null;
+
+    // Si no está en conocidos, intentar descubrir el ose_id dinámicamente con la API de Shalom
+    if (!targetOseId) {
+      try {
+        const details = await getShalomOrderDetails(cleanNumero, cleanCodigo, undefined, authToken);
+        if (details?.data?.ose_id) {
+          targetOseId = details.data.ose_id;
+        }
+      } catch (err: any) {
+        console.warn('[Register Shipment] No se pudo obtener ose_id dinámico de Shalom:', err?.message);
+      }
+    }
 
     let shipmentData: any;
 
@@ -115,17 +151,18 @@ export async function POST(req: NextRequest) {
         });
 
         shipmentData = {
+          order_id: resolvedOrderId,
           numero: cleanNumero,
           codigo: cleanCodigo,
           ose_id: targetOseId,
           estado: norm.estado,
           subtitulo: norm.subtitulo,
           fecha_estado: norm.fecha_estado || new Date().toLocaleString('es-PE'),
-          origen_nombre: known?.origen_nombre,
-          origen_direccion: known?.origen_direccion,
-          destino_nombre: known?.destino_nombre,
-          destino_direccion: known?.destino_direccion,
-          destinatario: known?.destinatario,
+          origen_nombre: known?.origen_nombre || 'Agencia de Origen Shalom',
+          origen_direccion: known?.origen_direccion || 'Lima, Perú',
+          destino_nombre: known?.destino_nombre || 'Agencia de Destino',
+          destino_direccion: known?.destino_direccion || 'Destino Nacional',
+          destinatario: known?.destinatario || 'Cliente Nexora Store',
           comprobante_pdf: docInfo.comprobante_pdf,
           comprobante_pendiente: docInfo.comprobante_pendiente,
           grt_url: docInfo.grt_url,
@@ -136,7 +173,7 @@ export async function POST(req: NextRequest) {
           estado_pago: known?.estado_pago || 'Por cobrar (CR)',
         };
       } catch (err: any) {
-        console.warn('[Register Shipment] Falló API en vivo, usando datos normalizados:', err?.message);
+        console.warn('[Register Shipment] Falló API en vivo, usando datos estructurados:', err?.message);
         const fallbackDoc = verifyAndResolveOrderDocuments({
           numero: cleanNumero,
           codigo: cleanCodigo,
@@ -148,12 +185,13 @@ export async function POST(req: NextRequest) {
         });
 
         shipmentData = {
+          order_id: resolvedOrderId,
           numero: cleanNumero,
           codigo: cleanCodigo,
           ose_id: targetOseId,
           estado: 'En tránsito',
           subtitulo: 'Rumbo a su destino.',
-          fecha_estado: '10/09/26 a las 12:57',
+          fecha_estado: new Date().toLocaleString('es-PE'),
           origen_nombre: known?.origen_nombre || 'Agencia Raymondi (La Victoria)',
           origen_direccion: known?.origen_direccion || 'JR. ANTONIO RAYMONDI NRO. 113, LA VICTORIA, LIMA',
           destino_nombre: known?.destino_nombre || 'Agencia Paita Sol y Mar',
@@ -163,7 +201,7 @@ export async function POST(req: NextRequest) {
           comprobante_pendiente: fallbackDoc.comprobante_pendiente,
           grt_url: fallbackDoc.grt_url,
           carguero: '1045277',
-          fecha_envio: known?.fecha_envio || '2026-09-10 12:57:00',
+          fecha_envio: known?.fecha_envio || new Date().toISOString(),
           tipo_pago: known?.tipo_pago || 'Contra entrega',
           monto: known?.monto || '12.00',
           estado_pago: known?.estado_pago || 'Por cobrar (CR)',
@@ -172,6 +210,7 @@ export async function POST(req: NextRequest) {
     } else {
       // Registro de orden nueva general
       shipmentData = {
+        order_id: resolvedOrderId,
         numero: cleanNumero,
         codigo: cleanCodigo,
         estado: 'En origen',
@@ -189,7 +228,23 @@ export async function POST(req: NextRequest) {
       };
     }
 
-    const saved = saveOrUpdateShipment(shipmentData);
+    const saved = await saveOrUpdateShipment(shipmentData);
+
+    // Si tiene un order_id asociado, sincronizar el tracking_code en la tabla orders
+    if (resolvedOrderId) {
+      try {
+        await adminSb
+          .from('orders')
+          .update({
+            tracking_code: cleanNumero,
+            status: 'dispatched',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', resolvedOrderId);
+      } catch (syncOrdErr) {
+        console.warn('Error sincronizando tracking_code en orders:', syncOrdErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,

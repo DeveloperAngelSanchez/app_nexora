@@ -30,6 +30,12 @@ interface OrderItem {
   subtotal: number;
   items: any[];
   tracking_code?: string | null;
+  shipment?: {
+    id: string;
+    numero: string;
+    estado: string;
+    fecha_estado?: string;
+  } | null;
   created_at: string;
 }
 
@@ -180,10 +186,21 @@ export function OrdersTableClient({ initialOrders, currentStatus, currentStatusF
                     <td className="py-3.5 px-4">
                       <Link
                         href={`/nxd-92f/pedidos/${order.id}`}
-                        className="font-mono font-bold text-slate-900 hover:text-emerald-600 hover:underline"
+                        className="font-mono font-bold text-slate-900 hover:text-emerald-600 hover:underline block"
                       >
                         {order.order_number}
                       </Link>
+                      {order.shipment ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-50 border border-red-200/60 px-1.5 py-0.5 rounded-md mt-1">
+                          <Truck className="w-2.5 h-2.5" />
+                          <span>Shalom: {order.shipment.estado}</span>
+                        </span>
+                      ) : order.tracking_code ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md mt-1 font-mono">
+                          <Truck className="w-2.5 h-2.5" />
+                          <span>{order.tracking_code}</span>
+                        </span>
+                      ) : null}
                     </td>
 
                     {/* Customer */}

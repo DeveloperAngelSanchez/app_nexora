@@ -17,6 +17,7 @@ export function RegisterShipmentDrawer({
 }: RegisterShipmentDrawerProps) {
   const [numero, setNumero] = useState('');
   const [codigo, setCodigo] = useState('');
+  const [orderNumber, setOrderNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -39,6 +40,7 @@ export function RegisterShipmentDrawer({
         body: JSON.stringify({
           numero: numero.trim(),
           codigo: codigo.trim().toUpperCase(),
+          order_number: orderNumber.trim() ? orderNumber.trim().toUpperCase() : undefined,
         }),
       });
 
@@ -51,6 +53,7 @@ export function RegisterShipmentDrawer({
       onSuccess(data.shipment);
       setNumero('');
       setCodigo('');
+      setOrderNumber('');
       onClose();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error de conexión con el servicio.');
@@ -78,7 +81,7 @@ export function RegisterShipmentDrawer({
               </div>
               <div>
                 <h3 className="text-lg font-bold text-slate-900">
-                  Registrar Pedido
+                  Registrar Envío
                 </h3>
                 <p className="text-xs text-slate-500">
                   Ingresa los datos del comprobante Shalom
@@ -95,7 +98,7 @@ export function RegisterShipmentDrawer({
             </button>
           </div>
 
-          {/* Formulario (Únicamente 2 campos pedidos por el usuario) */}
+          {/* Formulario */}
           <form onSubmit={handleSubmit} className="flex-1 p-6 flex flex-col justify-between overflow-y-auto">
             <div className="space-y-5">
               {errorMsg && (
@@ -108,7 +111,7 @@ export function RegisterShipmentDrawer({
               {/* Campo 1: N° de Orden */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  N° de Orden <span className="text-red-500">*</span>
+                  N° de Orden Shalom <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -143,9 +146,27 @@ export function RegisterShipmentDrawer({
                 </span>
               </div>
 
+              {/* Campo 3: N° de Pedido NeXora (Opcional) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                  <span>N° de Pedido NeXora</span>
+                  <span className="text-[10px] text-slate-400 font-normal lowercase">(opcional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={orderNumber}
+                  onChange={(e) => setOrderNumber(e.target.value.toUpperCase())}
+                  placeholder="Ej: NX-001005"
+                  className="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm font-mono uppercase text-slate-900 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all placeholder:text-slate-400"
+                />
+                <span className="text-xs text-slate-500 mt-1 block">
+                  Si lo ingresas, este envío se vinculará automáticamente al pedido de la tienda.
+                </span>
+              </div>
+
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-1">
                 <strong className="text-slate-800 block">⚡ Automatización Inmediata:</strong>
-                Al registrar, el sistema consultará directamente a la API de Shalom para sincronizar el estado, origen, destino y carguero en tiempo real.
+                Al registrar, el sistema consultará directamente a la API de Shalom para sincronizar el estado, origen, destino y carguero en tiempo real, persistiendo en la base de datos.
               </div>
             </div>
 

@@ -9,7 +9,7 @@ interface RouteContext {
 export async function POST(req: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const shipment = getShalomShipmentById(id);
+    const shipment = await getShalomShipmentById(id);
 
     if (!shipment) {
       return NextResponse.json(
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
-    const connection = getShalomConnection();
+    const connection = await getShalomConnection();
     const authToken = connection.is_connected ? connection.auth_token : undefined;
 
     let updatedEstado = shipment.estado;
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     // Actualizar siempre con la hora exacta de la consulta actual y los documentos verificados en la BD
-    const updated = saveOrUpdateShipment({
+    const updated = await saveOrUpdateShipment({
       ...shipment,
       estado: updatedEstado,
       subtitulo: updatedSubtitulo,

@@ -8,7 +8,7 @@ interface RouteContext {
 export async function DELETE(req: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const existing = getShalomShipmentById(id);
+    const existing = await getShalomShipmentById(id);
 
     if (!existing) {
       return NextResponse.json(
@@ -17,7 +17,7 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
       );
     }
 
-    const success = deleteShipment(id);
+    const success = await deleteShipment(id);
 
     return NextResponse.json({
       success,
