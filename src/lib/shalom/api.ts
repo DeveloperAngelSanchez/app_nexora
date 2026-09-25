@@ -1,7 +1,62 @@
+import crypto from 'crypto';
 import { generateShalomBearer, decryptShalomPayload } from './crypto';
 import type { ShalomStatusResponse, ShalomTrackingResult } from './types';
 
 const BASE_URL = 'https://serviceswebapi.shalomcontrol.com/api/v1/web';
+
+function generateSessionKey(): string {
+  return crypto.randomBytes(32).toString('base64');
+}
+
+function decryptWithSessionKey<T = any>(dataB64: string, sessionKeyB64: string): T {
+  const rawBuffer = Buffer.from(dataB64, 'base64');
+  const key = Buffer.from(sessionKeyB64, 'base64');
+  const iv = rawBuffer.subarray(0, 16);
+  const ciphertext = rawBuffer.subarray(16);
+  const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+  decipher.setAutoPadding(true);
+  let dec = decipher.update(ciphertext, undefined, 'utf8');
+  dec += decipher.final('utf8');
+  try {
+    return JSON.parse(dec) as T;
+  } catch {
+    return dec as unknown as T;
+  }
+}
+
+let cachedSession: { csrf: string; sessionKey: string; expiresAt: number } | null = null;
+
+export async function getShalomSession(): Promise<{ csrf: string; sessionKey: string }> {
+  const now = Math.floor(Date.now() / 1000);
+  if (cachedSession && cachedSession.expiresAt > now + 30) {
+    return { csrf: cachedSession.csrf, sessionKey: cachedSession.sessionKey };
+  }
+
+  const sessionKey = generateSessionKey();
+  const sessionRes = await fetch('https://shalom.com.pe/api/local/session', {
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest',
+      'X-Session-Key': sessionKey,
+      'Origin': 'https://shalom.com.pe',
+      'Referer': 'https://shalom.com.pe/rastrea',
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+    },
+    signal: AbortSignal.timeout(4000),
+  });
+
+  if (!sessionRes.ok) {
+    throw new Error(`Error obteniendo sesión de Shalom (${sessionRes.status})`);
+  }
+
+  const { csrf, expiresAt } = await sessionRes.json();
+  cachedSession = {
+    csrf,
+    sessionKey,
+    expiresAt: expiresAt || now + 300,
+  };
+
+  return { csrf, sessionKey };
+}
 
 /**
  * Consulta el estado de un envío en Shalom a través del endpoint /rastrea/estados
@@ -11,10 +66,45 @@ export async function getShalomStatusByOseId(
   oseId: string | number,
   authToken?: string
 ): Promise<ShalomStatusResponse> {
-  const bearer = generateShalomBearer();
   const formData = new FormData();
   formData.append('ose_id', String(oseId));
 
+  // 1. Intentar método moderno con sesión web oficial
+  try {
+    const { csrf, sessionKey } = await getShalomSession();
+    const headers: Record<string, string> = {
+      'Origin': 'https://shalom.com.pe',
+      'Referer': 'https://shalom.com.pe/rastrea',
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      'X-Proxy-Token': csrf,
+      'X-Session-Key': sessionKey,
+      'Accept': 'application/json, text/plain, */*',
+    };
+
+    if (authToken) {
+      headers['X-Auth-Token'] = authToken;
+    }
+
+    const response = await fetch('https://shalom.com.pe/api/v1/web/rastrea/estados', {
+      method: 'POST',
+      headers,
+      body: formData,
+      signal: AbortSignal.timeout(4500),
+    });
+
+    if (response.ok) {
+      const json = await response.json();
+      if (json.encrypted && json.data) {
+        return decryptWithSessionKey<ShalomStatusResponse>(json.data, sessionKey);
+      }
+      return json;
+    }
+  } catch (sessErr: any) {
+    console.warn('[Shalom API] Sesión oficial falló, probando canal secundario:', sessErr?.message);
+  }
+
+  // 2. Fallback con Bearer directo a serviceswebapi
+  const bearer = generateShalomBearer();
   const headers: Record<string, string> = {
     'Authorization': bearer,
     'Accept': 'application/json, text/plain, */*',
