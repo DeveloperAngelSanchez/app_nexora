@@ -3,6 +3,12 @@ export interface ShalomStatusNode {
   completo?: boolean;
   cargueros?: string[];
   carguero?: string;
+  cliente?: {
+    nombre?: string;
+    documento?: string;
+    tipo_documento?: string;
+  };
+  [key: string]: any;
 }
 
 export interface ShalomStatusData {

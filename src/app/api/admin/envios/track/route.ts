@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getShalomStatusByOseId, normalizeShalomStatus, verifyAndResolveOrderDocuments } from '@/lib/shalom/api';
-import { KNOWN_SHALOM_ORDERS } from '@/lib/shalom/known-orders';
+import { getShalomStatusByOseId, normalizeShalomStatus, verifyAndResolveOrderDocuments, getShalomOrderDetails } from '@/lib/shalom/api';
 import type { ShalomTrackingResult } from '@/lib/shalom/types';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { numero, codigo, ose_id } = body;
+    const { numero, codigo, ose_id, recaptcha_token } = body;
 
     if (!numero) {
       return NextResponse.json(
@@ -17,9 +19,24 @@ export async function POST(req: NextRequest) {
 
     const cleanNumero = String(numero).trim();
     const cleanCodigo = String(codigo || '').trim().toUpperCase();
-    const known = KNOWN_SHALOM_ORDERS[cleanNumero];
 
-    const targetOseId = ose_id || (known ? known.ose_id : null);
+    let targetOseId = ose_id || null;
+    let liveOrderDetails: any = null;
+
+    // Si no tenemos ose_id, intentar descubrirlo con /rastrea/buscar en Shalom
+    if (!targetOseId) {
+      try {
+        const details = await getShalomOrderDetails(cleanNumero, cleanCodigo, undefined, undefined, recaptcha_token);
+        if (details?.data) {
+          liveOrderDetails = details.data;
+          if (details.data.ose_id) {
+            targetOseId = details.data.ose_id;
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[Track API] Buscar orden para ${cleanNumero}:`, err?.message);
+      }
+    }
 
     let trackingResult: ShalomTrackingResult;
 
@@ -27,98 +44,88 @@ export async function POST(req: NextRequest) {
       try {
         // Consulta directa a la API de Shalom en vivo
         const rawStatus = await getShalomStatusByOseId(targetOseId);
-        trackingResult = normalizeShalomStatus(rawStatus, cleanNumero, cleanCodigo || (known?.codigo || ''), targetOseId);
+        trackingResult = normalizeShalomStatus(rawStatus, cleanNumero, cleanCodigo, targetOseId);
 
-        // Enriquecer con datos de origen y destino si existen
-        if (known) {
-          trackingResult.origen_nombre = known.origen_nombre;
-          trackingResult.origen_direccion = known.origen_direccion;
-          trackingResult.destino_nombre = known.destino_nombre;
-          trackingResult.destino_direccion = known.destino_direccion;
-          trackingResult.destinatario = known.destinatario;
-          trackingResult.tipo_pago = known.tipo_pago;
-          trackingResult.monto = known.monto;
-          trackingResult.estado_pago = known.estado_pago;
+        if (liveOrderDetails) {
+          trackingResult.origen_nombre = liveOrderDetails.origen?.nombre;
+          trackingResult.origen_direccion = liveOrderDetails.origen?.direccion;
+          trackingResult.destino_nombre = liveOrderDetails.destino?.nombre;
+          trackingResult.destino_direccion = liveOrderDetails.destino?.direccion;
+          trackingResult.destinatario = liveOrderDetails.destinatario?.nombre || liveOrderDetails.cliente?.nombre;
+          trackingResult.tipo_pago = liveOrderDetails.comprobante?.tipo_pago;
+          trackingResult.monto = liveOrderDetails.monto || liveOrderDetails.comprobante?.monto;
+          trackingResult.estado_pago = liveOrderDetails.comprobante?.estado_pago;
+        }
+
+        if (rawStatus.data?.entregado?.cliente?.nombre) {
+          trackingResult.destinatario = rawStatus.data.entregado.cliente.nombre;
         }
 
         const docInfo = verifyAndResolveOrderDocuments({
           numero: cleanNumero,
           codigo: cleanCodigo,
           ose_id: targetOseId,
-          tipo_pago: known?.tipo_pago,
-          estado_pago: known?.estado_pago,
-          comprobante_pdf: known?.comprobante_pdf,
-          grt_url: known?.grt_url,
+          tipo_pago: trackingResult.tipo_pago,
+          estado_pago: trackingResult.estado_pago,
         });
+
         trackingResult.comprobante_pdf = docInfo.comprobante_pdf;
-        trackingResult.comprobante_pendiente = docInfo.comprobante_pendiente;
+        trackingResult.comprobante_pendiente = trackingResult.estado === 'Entregado' ? false : docInfo.comprobante_pendiente;
         trackingResult.grt_url = docInfo.grt_url;
       } catch (apiError: any) {
-        console.warn('[Track API] Falló llamada a Shalom API, usando fallback:', apiError?.message);
-        
-        const docInfo = verifyAndResolveOrderDocuments({
+        console.warn('[Track API] Falló llamada a Shalom API estados:', apiError?.message);
+
+        trackingResult = {
           numero: cleanNumero,
           codigo: cleanCodigo,
           ose_id: targetOseId,
-          tipo_pago: known?.tipo_pago || 'Contra entrega',
-          estado_pago: known?.estado_pago || 'Por cobrar (CR)',
-          comprobante_pdf: known?.comprobante_pdf,
-          grt_url: known?.grt_url,
-        });
-
-        // Fallback estructurado idéntico a la orden 95379502 validada
-        trackingResult = {
-          numero: cleanNumero,
-          codigo: cleanCodigo || (known?.codigo || 'P3PJ'),
-          ose_id: targetOseId,
           estado: 'En tránsito',
           subtitulo: 'Rumbo a su destino.',
-          fecha_estado: '10/09/26 a las 12:57',
+          fecha_estado: new Date().toLocaleString('es-PE'),
           hitos: {
             origen: true,
             transito: true,
             destino: false,
             entregado: false,
           },
-          origen_nombre: known?.origen_nombre || 'Agencia Raymondi (La Victoria)',
-          origen_direccion: known?.origen_direccion || 'JR. ANTONIO RAYMONDI NRO. 113, LA VICTORIA, LIMA',
-          destino_nombre: known?.destino_nombre || 'Agencia Paita Sol y Mar',
-          destino_direccion: known?.destino_direccion || 'MZ. H LT. 14 URB. SOL Y MAR, PAITA, PIURA',
-          destinatario: known?.destinatario || 'Destinatario Nexora',
-          comprobante_pdf: docInfo.comprobante_pdf,
-          comprobante_pendiente: docInfo.comprobante_pendiente,
-          grt_url: docInfo.grt_url,
-          tipo_pago: known?.tipo_pago || 'Contra entrega',
-          monto: known?.monto || '12.00',
-          estado_pago: known?.estado_pago || 'Por cobrar (CR)',
-          carguero: '1045277',
+          origen_nombre: liveOrderDetails?.origen?.nombre || 'Agencia de Origen Shalom',
+          destino_nombre: liveOrderDetails?.destino?.nombre || 'Agencia de Destino',
+          destinatario: liveOrderDetails?.destinatario?.nombre || 'Destinatario Shalom',
+          tipo_pago: 'Contra entrega',
+          monto: '12.00',
+          estado_pago: 'Por cobrar (CR)',
         };
       }
     } else {
-      // Si es un número sin ose_id previo, devolvemos simulación inicial
+      // Envío registrado sin ose_id aún
       trackingResult = {
         numero: cleanNumero,
         codigo: cleanCodigo,
         estado: 'En origen',
-        subtitulo: 'Paquete recepcionado en agencia y listo para despacho.',
-        fecha_estado: new Date().toLocaleDateString('es-PE'),
+        subtitulo: 'Recepción en agencia de origen lista para despacho.',
+        fecha_estado: new Date().toLocaleString('es-PE'),
         hitos: {
           origen: true,
           transito: false,
           destino: false,
           entregado: false,
         },
+        origen_nombre: 'Agencia de Origen Shalom',
+        destino_nombre: 'Agencia de Destino',
+        destinatario: 'Por confirmar en despacho',
+        tipo_pago: 'Contra entrega',
+        monto: '12.00',
+        estado_pago: 'Por cobrar (CR)',
       };
     }
 
     return NextResponse.json({
       success: true,
-      tracking: trackingResult,
+      data: trackingResult,
     });
   } catch (error: any) {
-    console.error('[Track API] Error general:', error);
     return NextResponse.json(
-      { success: false, error: error?.message || 'Error interno al rastrear paquete' },
+      { success: false, error: error?.message || 'Error al rastrear envío' },
       { status: 500 }
     );
   }

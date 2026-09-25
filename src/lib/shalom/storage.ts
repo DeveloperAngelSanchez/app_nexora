@@ -40,56 +40,8 @@ export interface ShalomConnectionState {
   updated_at: string | null;
 }
 
-// Semilla de reserva en caso de fallo de conexión con Supabase
-const FALLBACK_SHIPMENTS: ShalomStoredShipment[] = [
-  {
-    id: 'sh-95379502-P3PJ',
-    numero: '95379502',
-    codigo: 'P3PJ',
-    ose_id: 98851762,
-    estado: 'En destino',
-    subtitulo: 'Disponible para retiro en agencia de destino.',
-    fecha_estado: '11/09/26 a las 08:30',
-    fecha_envio: '2026-09-10 12:57:00',
-    tipo_pago: 'Contra entrega',
-    monto: '12.00',
-    estado_pago: 'Por cobrar (CR)',
-    origen_nombre: 'Agencia Raymondi (La Victoria)',
-    origen_direccion: 'JR. ANTONIO RAYMONDI NRO. 113, LA VICTORIA, LIMA',
-    destino_nombre: 'Agencia Paita Sol y Mar',
-    destino_direccion: 'MZ. H LT. 14 URB. SOL Y MAR, PAITA, PIURA',
-    destinatario: 'Cliente Nexora Store',
-    grt_url: 'https://shalom.com.pe/rastrea',
-    comprobante_pendiente: true,
-    carguero: '1045277',
-    last_checked_at: '2026-09-11T02:51:16.323Z',
-    created_at: '2026-09-10T20:00:00.000Z',
-  },
-  {
-    id: 'sh-94567034-3KPC',
-    numero: '94567034',
-    codigo: '3KPC',
-    ose_id: 98124501,
-    estado: 'En destino',
-    subtitulo: 'Disponible para retiro en agencia de destino.',
-    fecha_estado: '09/09/26 a las 10:30',
-    fecha_envio: '2026-09-09 10:30:00',
-    tipo_pago: 'Pagado en origen',
-    monto: '15.00',
-    estado_pago: 'Pagado',
-    origen_nombre: 'Agencia San Borja',
-    origen_direccion: 'AV. AVIACIÓN 2819, SAN BORJA, LIMA (Frente a Bembos)',
-    destino_nombre: 'Agencia Paita Sol y Mar',
-    destino_direccion: 'MZ. H LT. 14 URB. SOL Y MAR, PAITA, PIURA',
-    destinatario: 'Cliente VIP Nexora',
-    comprobante_pdf: 'https://www.nubefact.com/cpe/82b646ac-150e-484e-aa6e-969c6f9123fb.pdf',
-    comprobante_pendiente: false,
-    grt_url: 'https://shalom.com.pe/rastrea',
-    carguero: '1042190',
-    last_checked_at: '2026-09-10T18:15:00.000Z',
-    created_at: '2026-09-09T10:30:00.000Z',
-  },
-];
+// Reserva en caso de fallo de conexión con Supabase
+const FALLBACK_SHIPMENTS: ShalomStoredShipment[] = [];
 
 let fallbackConnectionState: ShalomConnectionState = {
   is_connected: false,

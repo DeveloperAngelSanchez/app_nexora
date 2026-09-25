@@ -21,6 +21,16 @@ export function RegisterShipmentDrawer({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && !document.getElementById('shalom-recaptcha-script')) {
+      const script = document.createElement('script');
+      script.id = 'shalom-recaptcha-script';
+      script.src = 'https://www.google.com/recaptcha/api.js?render=6LeGp5EtAAAAADF5427odqjDKEoxPudnerojGTt2';
+      script.async = true;
+      document.head.appendChild(script);
+    }
+  }, []);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,6 +43,17 @@ export function RegisterShipmentDrawer({
     setLoading(true);
     setErrorMsg(null);
 
+    let recaptchaToken = '';
+    if (typeof window !== 'undefined' && (window as any).grecaptcha) {
+      try {
+        recaptchaToken = await (window as any).grecaptcha.execute('6LeGp5EtAAAAADF5427odqjDKEoxPudnerojGTt2', {
+          action: 'rastrea_buscar',
+        });
+      } catch (capErr) {
+        console.warn('[Register Drawer] reCAPTCHA no disponible:', capErr);
+      }
+    }
+
     try {
       const res = await fetch('/api/admin/envios/shipments', {
         method: 'POST',
@@ -41,6 +62,7 @@ export function RegisterShipmentDrawer({
           numero: numero.trim(),
           codigo: codigo.trim().toUpperCase(),
           order_number: orderNumber.trim() ? orderNumber.trim().toUpperCase() : undefined,
+          recaptcha_token: recaptchaToken || undefined,
         }),
       });
 

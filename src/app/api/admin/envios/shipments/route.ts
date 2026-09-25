@@ -6,7 +6,6 @@ import {
   verifyAndResolveOrderDocuments,
   getShalomOrderDetails 
 } from '@/lib/shalom/api';
-import { KNOWN_SHALOM_ORDERS } from '@/lib/shalom/known-orders';
 import { createSupabaseAdminClient } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
@@ -39,19 +38,25 @@ export async function GET() {
               grt_url: s.grt_url,
             });
 
+            let liveDest = s.destinatario;
+            if (raw.data?.entregado?.cliente?.nombre) {
+              liveDest = raw.data.entregado.cliente.nombre;
+            }
+
             await saveOrUpdateShipment({
               ...s,
               estado: norm.estado,
               subtitulo: norm.subtitulo,
               fecha_estado: norm.fecha_estado || s.fecha_estado,
               carguero: norm.carguero || s.carguero,
+              destinatario: liveDest,
               comprobante_pdf: docInfo.comprobante_pdf,
-              comprobante_pendiente: docInfo.comprobante_pendiente,
+              comprobante_pendiente: norm.estado === 'Entregado' ? false : docInfo.comprobante_pendiente,
               grt_url: docInfo.grt_url,
               last_checked_at: new Date().toISOString(),
             });
           } catch {
-            // Si la llamada externa falla, se mantiene el estado persistido
+            // Si la llamada externa falla temporalmente, se mantiene el estado persistido
           }
         }
       });
@@ -83,7 +88,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { numero, codigo, order_id, order_number } = body;
+    const { numero, codigo, order_id, order_number, recaptcha_token } = body;
 
     if (!numero || !codigo) {
       return NextResponse.json(
@@ -95,8 +100,10 @@ export async function POST(req: NextRequest) {
     const cleanNumero = String(numero).trim();
     const cleanCodigo = String(codigo).trim().toUpperCase();
 
-    // Resolver order_id si se pasó un order_number
+    // 1. Resolver orden asociada en Nexora si existe
     let resolvedOrderId = order_id || null;
+    let linkedOrderCustomerName: string | undefined;
+    let linkedOrderAddress: string | undefined;
     const adminSb = createSupabaseAdminClient();
 
     if (!resolvedOrderId && order_number) {
@@ -104,34 +111,59 @@ export async function POST(req: NextRequest) {
         const cleanOrdNum = String(order_number).trim().toUpperCase();
         const { data: matchedOrder } = await adminSb
           .from('orders')
-          .select('id')
+          .select('id, customer_name, shipping_address')
           .eq('order_number', cleanOrdNum)
           .maybeSingle();
 
         if (matchedOrder?.id) {
           resolvedOrderId = matchedOrder.id;
+          linkedOrderCustomerName = matchedOrder.customer_name;
+          linkedOrderAddress = matchedOrder.shipping_address;
         }
       } catch (ordLookupErr) {
         console.warn('Error resolviendo order_number:', ordLookupErr);
+      }
+    } else if (resolvedOrderId) {
+      try {
+        const { data: ord } = await adminSb
+          .from('orders')
+          .select('customer_name, shipping_address')
+          .eq('id', resolvedOrderId)
+          .maybeSingle();
+
+        if (ord) {
+          linkedOrderCustomerName = ord.customer_name;
+          linkedOrderAddress = ord.shipping_address;
+        }
+      } catch (ordErr) {
+        console.warn('Error obteniendo datos de orden:', ordErr);
       }
     }
 
     const connection = await getShalomConnection();
     const authToken = connection.is_connected ? connection.auth_token : undefined;
 
-    const known = KNOWN_SHALOM_ORDERS[cleanNumero];
-    let targetOseId = known ? known.ose_id : null;
+    let targetOseId: string | number | null = null;
+    let liveOrderDetails: any = null;
 
-    // Si no está en conocidos, intentar descubrir el ose_id dinámicamente con la API de Shalom
-    if (!targetOseId) {
-      try {
-        const details = await getShalomOrderDetails(cleanNumero, cleanCodigo, undefined, authToken);
-        if (details?.data?.ose_id) {
+    // 2. Consultar detalles de la orden en vivo con Shalom API
+    try {
+      const details = await getShalomOrderDetails(
+        cleanNumero,
+        cleanCodigo,
+        undefined,
+        authToken,
+        recaptcha_token
+      );
+
+      if (details?.data) {
+        liveOrderDetails = details.data;
+        if (details.data.ose_id) {
           targetOseId = details.data.ose_id;
         }
-      } catch (err: any) {
-        console.warn('[Register Shipment] No se pudo obtener ose_id dinámico de Shalom:', err?.message);
       }
+    } catch (err: any) {
+      console.warn('[Register Shipment] Consulta inicial a Shalom API:', err?.message);
     }
 
     let shipmentData: any;
@@ -140,14 +172,31 @@ export async function POST(req: NextRequest) {
       try {
         const raw = await getShalomStatusByOseId(targetOseId, authToken);
         const norm = normalizeShalomStatus(raw, cleanNumero, cleanCodigo, targetOseId);
+
+        const liveDestinatario = 
+          raw.data?.entregado?.cliente?.nombre || 
+          liveOrderDetails?.destinatario?.nombre || 
+          liveOrderDetails?.destinatario || 
+          liveOrderDetails?.cliente?.nombre || 
+          linkedOrderCustomerName || 
+          'Por confirmar en despacho';
+
+        const liveOrigenNombre = liveOrderDetails?.origen?.nombre || 'Agencia de Origen Shalom';
+        const liveOrigenDireccion = liveOrderDetails?.origen?.direccion || undefined;
+        const liveDestinoNombre = liveOrderDetails?.destino?.nombre || 'Agencia de Destino';
+        const liveDestinoDireccion = liveOrderDetails?.destino?.direccion || linkedOrderAddress || undefined;
+
+        const liveTipoPago = liveOrderDetails?.comprobante?.tipo_pago || 'Contra entrega';
+        const liveEstadoPago = liveOrderDetails?.comprobante?.estado_pago || (norm.estado === 'Entregado' ? 'Pagado' : 'Por cobrar (CR)');
+        const liveMonto = liveOrderDetails?.monto || liveOrderDetails?.comprobante?.monto || '12.00';
+
         const docInfo = verifyAndResolveOrderDocuments({
           numero: cleanNumero,
           codigo: cleanCodigo,
           ose_id: targetOseId,
-          tipo_pago: known?.tipo_pago,
-          estado_pago: known?.estado_pago,
-          comprobante_pdf: known?.comprobante_pdf,
-          grt_url: known?.grt_url,
+          tipo_pago: liveTipoPago,
+          estado_pago: liveEstadoPago,
+          grt_url: liveOrderDetails?.grt_url,
         });
 
         shipmentData = {
@@ -158,73 +207,61 @@ export async function POST(req: NextRequest) {
           estado: norm.estado,
           subtitulo: norm.subtitulo,
           fecha_estado: norm.fecha_estado || new Date().toLocaleString('es-PE'),
-          origen_nombre: known?.origen_nombre || 'Agencia de Origen Shalom',
-          origen_direccion: known?.origen_direccion || 'Lima, Perú',
-          destino_nombre: known?.destino_nombre || 'Agencia de Destino',
-          destino_direccion: known?.destino_direccion || 'Destino Nacional',
-          destinatario: known?.destinatario || 'Cliente Nexora Store',
+          origen_nombre: liveOrigenNombre,
+          origen_direccion: liveOrigenDireccion,
+          destino_nombre: liveDestinoNombre,
+          destino_direccion: liveDestinoDireccion,
+          destinatario: liveDestinatario,
           comprobante_pdf: docInfo.comprobante_pdf,
-          comprobante_pendiente: docInfo.comprobante_pendiente,
+          comprobante_pendiente: norm.estado === 'Entregado' ? false : docInfo.comprobante_pendiente,
           grt_url: docInfo.grt_url,
-          carguero: norm.carguero || '1045277',
-          fecha_envio: known?.fecha_envio || new Date().toISOString(),
-          tipo_pago: known?.tipo_pago || 'Contra entrega',
-          monto: known?.monto || '12.00',
-          estado_pago: known?.estado_pago || 'Por cobrar (CR)',
+          carguero: norm.carguero,
+          fecha_envio: liveOrderDetails?.fecha_emision || new Date().toISOString(),
+          tipo_pago: liveTipoPago,
+          monto: liveMonto,
+          estado_pago: liveEstadoPago,
+          last_checked_at: new Date().toISOString(),
         };
       } catch (err: any) {
-        console.warn('[Register Shipment] Falló API en vivo, usando datos estructurados:', err?.message);
-        const fallbackDoc = verifyAndResolveOrderDocuments({
-          numero: cleanNumero,
-          codigo: cleanCodigo,
-          ose_id: targetOseId,
-          tipo_pago: known?.tipo_pago || 'Contra entrega',
-          estado_pago: known?.estado_pago || 'Por cobrar (CR)',
-          comprobante_pdf: known?.comprobante_pdf,
-          grt_url: known?.grt_url,
-        });
-
+        console.warn('[Register Shipment] Error al consultar estados con ose_id:', err?.message);
         shipmentData = {
           order_id: resolvedOrderId,
           numero: cleanNumero,
           codigo: cleanCodigo,
           ose_id: targetOseId,
-          estado: known?.estado || 'En tránsito',
-          subtitulo: known?.subtitulo || 'Rumbo a su destino.',
-          fecha_estado: known?.fecha_estado || new Date().toLocaleString('es-PE'),
-          origen_nombre: known?.origen_nombre || 'Agencia Raymondi (La Victoria)',
-          origen_direccion: known?.origen_direccion || 'JR. ANTONIO RAYMONDI NRO. 113, LA VICTORIA, LIMA',
-          destino_nombre: known?.destino_nombre || 'Agencia Paita Sol y Mar',
-          destino_direccion: known?.destino_direccion || 'MZ. H LT. 14 URB. SOL Y MAR, PAITA, PIURA',
-          destinatario: known?.destinatario || 'Cliente Nexora Store',
-          comprobante_pdf: fallbackDoc.comprobante_pdf,
-          comprobante_pendiente: fallbackDoc.comprobante_pendiente,
-          grt_url: fallbackDoc.grt_url,
-          carguero: '1045277',
-          fecha_envio: known?.fecha_envio || new Date().toISOString(),
-          tipo_pago: known?.tipo_pago || 'Contra entrega',
-          monto: known?.monto || '12.00',
-          estado_pago: known?.estado_pago || 'Por cobrar (CR)',
+          estado: 'En origen',
+          subtitulo: 'Recepción en agencia de origen lista para despacho.',
+          fecha_estado: new Date().toLocaleString('es-PE'),
+          origen_nombre: liveOrderDetails?.origen?.nombre || 'Agencia de Origen Shalom',
+          origen_direccion: liveOrderDetails?.origen?.direccion,
+          destino_nombre: liveOrderDetails?.destino?.nombre || 'Agencia de Destino',
+          destino_direccion: liveOrderDetails?.destino?.direccion || linkedOrderAddress,
+          destinatario: liveOrderDetails?.destinatario?.nombre || linkedOrderCustomerName || 'Por confirmar en despacho',
+          fecha_envio: liveOrderDetails?.fecha_emision || new Date().toISOString(),
+          tipo_pago: liveOrderDetails?.comprobante?.tipo_pago || 'Contra entrega',
+          monto: liveOrderDetails?.monto || '12.00',
+          estado_pago: liveOrderDetails?.comprobante?.estado_pago || 'Por cobrar (CR)',
+          last_checked_at: new Date().toISOString(),
         };
       }
     } else {
-      // Registro de orden nueva general
+      // Registro inicial cuando Shalom está procesando o no se indexó aún
       shipmentData = {
         order_id: resolvedOrderId,
         numero: cleanNumero,
         codigo: cleanCodigo,
-        estado: known?.estado || 'En origen',
-        subtitulo: known?.subtitulo || 'Recepción en agencia de origen lista para despacho.',
-        fecha_estado: known?.fecha_estado || new Date().toLocaleString('es-PE'),
-        origen_nombre: known?.origen_nombre || 'Agencia Registrada',
-        origen_direccion: known?.origen_direccion || 'Lima Metropolitana',
-        destino_nombre: known?.destino_nombre || 'Agencia de Destino',
-        destino_direccion: known?.destino_direccion || 'Por confirmar en despacho',
-        destinatario: known?.destinatario || 'Cliente Nexora',
-        fecha_envio: known?.fecha_envio || new Date().toISOString(),
-        tipo_pago: known?.tipo_pago || 'Contra entrega',
-        monto: known?.monto || '12.00',
-        estado_pago: known?.estado_pago || 'Por cobrar (CR)',
+        estado: 'En origen',
+        subtitulo: 'Recepción en agencia de origen lista para despacho.',
+        fecha_estado: new Date().toLocaleString('es-PE'),
+        origen_nombre: 'Agencia de Origen Shalom',
+        destino_nombre: 'Agencia de Destino',
+        destino_direccion: linkedOrderAddress || undefined,
+        destinatario: linkedOrderCustomerName || 'Por confirmar en despacho',
+        fecha_envio: new Date().toISOString(),
+        tipo_pago: 'Contra entrega',
+        monto: '12.00',
+        estado_pago: 'Por cobrar (CR)',
+        last_checked_at: new Date().toISOString(),
       };
     }
 

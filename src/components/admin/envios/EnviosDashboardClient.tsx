@@ -82,6 +82,13 @@ export function EnviosDashboardClient() {
 
   useEffect(() => {
     loadShipments();
+    if (typeof window !== 'undefined' && !document.getElementById('shalom-recaptcha-script')) {
+      const script = document.createElement('script');
+      script.id = 'shalom-recaptcha-script';
+      script.src = 'https://www.google.com/recaptcha/api.js?render=6LeGp5EtAAAAADF5427odqjDKEoxPudnerojGTt2';
+      script.async = true;
+      document.head.appendChild(script);
+    }
   }, []);
 
   // Función para transformar un envío guardado a ShalomTrackingResult
@@ -150,8 +157,21 @@ export function EnviosDashboardClient() {
     }, 50);
 
     try {
+      let recaptchaToken = '';
+      if (typeof window !== 'undefined' && (window as any).grecaptcha) {
+        try {
+          recaptchaToken = await (window as any).grecaptcha.execute('6LeGp5EtAAAAADF5427odqjDKEoxPudnerojGTt2', {
+            action: 'rastrea_buscar',
+          });
+        } catch (capErr) {
+          console.warn('[Toggle Expand] reCAPTCHA no disponible:', capErr);
+        }
+      }
+
       const res = await fetch(`/api/admin/envios/shipments/${item.id}/check`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recaptcha_token: recaptchaToken || undefined }),
       });
       const data = await res.json();
       const targetItem = (data.success && data.shipment) ? data.shipment : item;
@@ -176,12 +196,25 @@ export function EnviosDashboardClient() {
     }
   };
 
-  // Icono 1: Actualizar estado y fecha en background
+  // Icono 1: Actualizar estado y fecha en tiempo real
   const handleQuickRefresh = async (item: ShalomStoredShipment) => {
     setUpdatingId(item.id);
     try {
+      let recaptchaToken = '';
+      if (typeof window !== 'undefined' && (window as any).grecaptcha) {
+        try {
+          recaptchaToken = await (window as any).grecaptcha.execute('6LeGp5EtAAAAADF5427odqjDKEoxPudnerojGTt2', {
+            action: 'rastrea_buscar',
+          });
+        } catch (capErr) {
+          console.warn('[Quick Refresh] reCAPTCHA no disponible:', capErr);
+        }
+      }
+
       const res = await fetch(`/api/admin/envios/shipments/${item.id}/check`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recaptcha_token: recaptchaToken || undefined }),
       });
       const data = await res.json();
       if (data.success && data.shipment) {
